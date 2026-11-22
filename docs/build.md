@@ -24,7 +24,7 @@ only on x86_64 to GNOME Build Meta and freedesktop-sdk. Expect a substantial
 rebuild when switching from baseline artifacts to v3.
 
 For a local baseline x86_64 build, use
-`BST_FLAGS="-o x86_64_v3 false" just build default` and keep that option for
+`BST_FLAGS="-o x86_64_v3 false" just build` and keep that option for
 subsequent export/checkout commands. Direct BuildStream accepts
 `bst -o x86_64_v3 false ...` as well.
 
@@ -48,7 +48,7 @@ See [BuildStream project options](https://docs.buildstream.build/master/format_p
 ```bash
 just validate                  # graph check — always run first (~5 min, no build)
 
-just build default             # build the image — warm cache: minutes; cold: 60–90 min
+just build                     # build+export the image — warm: minutes; first v3 build: many hours
 
 just lint                      # bootc container lint — must pass before PR
 
