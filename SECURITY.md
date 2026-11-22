@@ -35,6 +35,6 @@ Verify the image signature:
 ```bash
 cosign verify \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github.com/Siddhj2206/mercury/.github/workflows/build.yml' \
+  --certificate-identity 'https://github.com/Siddhj2206/mercury/.github/workflows/build.yml@refs/heads/main' \
   ghcr.io/siddhj2206/mercury:latest
 ```
