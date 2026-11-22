@@ -71,7 +71,7 @@ TRACKED = [
     ("mercury/nfs-utils.bst", "nfs-utils", ""),
     ("mercury/nicstat.bst", "nicstat", ""),
     ("mercury/rpcbind.bst", "rpcbind", ""),
-    ("system/greetd.bst", "greetd", ""),
+    ("desktop/greetd.bst", "greetd", ""),
     # Private toolchain for Syncthing; any newer Go satisfies its go.mod.
     ("core/syncthing-go.bst", "Go (Syncthing toolchain)", ""),
     ("plugins/buildstream-plugins.bst", "buildstream-plugins",
@@ -155,9 +155,6 @@ RELEASES = {
     "mercury/gtk4-layer-shell.bst": Release(
         "wmww/gtk4-layer-shell", r"tags/(?P<version>v[0-9.]+)\.tar\.gz",
         "tags/{tag}.tar.gz"),
-    "mercury/uupd.bst": Release(
-        "ublue-os/uupd", r"download/(?P<version>v[^/]+)/", "download/{tag}/",
-        x86_asset_suffix="_Linux_x86_64.tar.gz"),
     "mercury/jetbrains-mono-nerd-font.bst": Release(
         "ryanoasis/nerd-fonts", r"download/(?P<version>v[^/]+)/", "download/{tag}/"),
     # No versioned GitHub releases (only a rolling "tip"), so read tags. Each
@@ -168,9 +165,6 @@ RELEASES = {
         query='[.[].name | select(test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$"))]'
               ' | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | last',
         generator="files/scripts/generate_ghostty_sources.py", derived=("mercury/zig.bst",)),
-    "mercury/umotd.bst": Release(
-        "projectbluefin/umotd", r"download/(?P<version>v[0-9.]+)/umotd_[0-9.]+_",
-        "download/{tag}/umotd_{version}_", x86_asset_suffix="_linux_amd64"),
     # The source archive vendors Go modules; core/syncthing-go.bst may need to follow.
     "mercury/syncthing.bst": Release(
         "syncthing/syncthing",
