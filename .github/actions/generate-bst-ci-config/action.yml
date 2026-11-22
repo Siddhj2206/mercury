@@ -1,22 +1,18 @@
 name: Generate BuildStream CI config
-description: Write BuildStream CI config for remote builds and local artifact consumers.
+description: Write BuildStream CI config for local builds with read-only public caches.
 
 inputs:
   enable-remote-execution:
-    description: Route build actions and CAS storage through cache.projectbluefin.io.
+    description: >-
+      Route build actions and CAS storage through a remote-execution cache.
+      Requires vars.CAS_URL plus CASD_CLIENT_CERT (repo variable) and
+      CASD_CLIENT_KEY (repo secret). Mercury has no remote-execution
+      infrastructure yet; leave disabled unless the owner deploys one.
     required: true
   enable-push:
     description: Publish built artifacts and fetched sources during the BuildStream build.
     required: false
     default: 'true'
-  casd-socket:
-    description: >-
-      casd's unix socket on build-pool runners that sit on the cache server.
-      Used instead of the mTLS endpoint only when it exists and the job has
-      both remote execution and pushes enabled, so signing jobs (push off)
-      never reach it.
-    required: false
-    default: /run/casd/casd.sock
 
 runs:
   using: composite
@@ -26,29 +22,15 @@ runs:
       env:
         ENABLE_REMOTE_EXECUTION: ${{ inputs.enable-remote-execution }}
         ENABLE_PUSH: ${{ inputs.enable-push }}
-        CASD_SOCKET: ${{ inputs.casd-socket }}
+        CAS_URL: ${{ vars.CAS_URL }}
       run: |
         set -euo pipefail
         WORKSPACE_ROOT="${GITHUB_WORKSPACE:-$PWD}"
         mkdir -p "$WORKSPACE_ROOT/logs"
 
-        # A unix: remote is a plaintext gRPC channel with no TLS or client
-        # identity (buildbox-common's ConnectionOptions accepts http://,
-        # https://, grpc://, grpcs:// and unix:), and the socket grants full
-        # read-write access to the production CAS. Only build-pool jobs with
-        # remote execution and pushes on may use it; everything else keeps
-        # the mTLS endpoint.
-        USE_SOCKET=false
         if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]] &&
-           [[ "${ENABLE_PUSH:-true}" == "true" ]] &&
-           [[ -n "${CASD_SOCKET:-}" ]] && [[ -S "$CASD_SOCKET" ]]; then
-          USE_SOCKET=true
-        fi
-
-        if [[ "$USE_SOCKET" == "false" ]] &&
-           [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]] &&
-           { [[ -z "${CASD_CLIENT_CERT:-}" ]] || [[ -z "${CASD_CLIENT_KEY:-}" ]]; }; then
-          echo "::error::remote execution was requested but CASD client credentials are missing"
+           { [[ -z "${CAS_URL:-}" ]] || [[ -z "${CASD_CLIENT_CERT:-}" ]] || [[ -z "${CASD_CLIENT_KEY:-}" ]]; }; then
+          echo "::error::remote execution was requested but CAS_URL / CASD client credentials are missing"
           exit 1
         fi
 
@@ -56,8 +38,6 @@ runs:
         printf '%s\n' "${CASD_CLIENT_KEY:-}" > "$WORKSPACE_ROOT/client.key"
         chmod 0600 "$WORKSPACE_ROOT/client.crt" "$WORKSPACE_ROOT/client.key"
 
-        # Every remote service entry shares one endpoint tuning and mTLS
-        # identity; the stanzas expand inside the unquoted heredocs below.
         CONNECTION_CONFIG=$(cat <<'EOF'
             connection-config:
               keepalive-time: 180
@@ -73,36 +53,7 @@ runs:
         EOF
         )
 
-        # Dakota's own CAS: the socket on build-pool runners, mTLS otherwise.
-        # just bst runs BuildStream in a container, so the socket directory is
-        # mounted into it through BST_PODMAN_EXTRA_ARGS.
-        if [[ "$USE_SOCKET" == "true" ]]; then
-          CAS_URL="unix:${CASD_SOCKET}"
-          CAS_AUTH=""
-          # Over the socket, keepalive pings reach casd itself rather than
-          # Traefik. casd sets no --permit-keepalive-time, so gRPC's server
-          # default applies: pings under five minutes apart are strikes and
-          # the second closes the connection (too_many_pings), which kills
-          # long Execute streams around twelve minutes in.
-          CONNECTION_CONFIG="${CONNECTION_CONFIG/keepalive-time: 180/keepalive-time: 360}"
-          SOCKET_DIR="$(dirname "$CASD_SOCKET")"
-          if [[ -n "${GITHUB_ENV:-}" ]]; then
-            echo "BST_PODMAN_EXTRA_ARGS=${BST_PODMAN_EXTRA_ARGS:-} -v ${SOCKET_DIR}:${SOCKET_DIR}:rw" >> "$GITHUB_ENV"
-          fi
-          echo "Dakota CAS transport: unix socket ${CASD_SOCKET}"
-        else
-          CAS_URL="https://cache.projectbluefin.io:11002"
-          CAS_AUTH="$CLIENT_AUTH"
-          echo "Dakota CAS transport: mTLS"
-        fi
-
-        # GBM uses four parent element builds, leaving executor slots for
-        # nested recc compiles. Our two concurrent matrix jobs share one host,
-        # so each gets two builders. Keep max-jobs explicit: the coordinator
-        # VM's CPU count does not describe the 32-thread execution host.
-        # The GNOME patch queue keeps LocalCAS on and job-token release off,
-        # otherwise max-jobs would not bound outstanding recc requests.
-        # Signing stays local with one job per element and two builders.
+        # Local build: a single builder is plenty on a hosted runner.
         if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]]; then
           MAX_JOBS=8
           BUILDERS=2
@@ -132,17 +83,12 @@ runs:
           max-jobs: ${MAX_JOBS}
         BSTCONFBUILD
 
-        if [[ "$USE_SOCKET" == "true" ]] ||
-           { [[ -n "${CASD_CLIENT_CERT:-}" ]] && [[ -n "${CASD_CLIENT_KEY:-}" ]]; }; then
-          PUSH_FLAG="true"
-          [[ "${ENABLE_PUSH:-true}" == "false" ]] && PUSH_FLAG="false"
-          cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFCACHE
+        # Public read-only artifact and source caches need no credentials.
+        # An owner-operated CAS (vars.CAS_URL + CASD_CLIENT_CERT var +
+        # CASD_CLIENT_KEY secret) is appended as a push target when present.
+        cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFCACHE
         artifacts:
           servers:
-          - url: ${CAS_URL}
-            push: ${PUSH_FLAG}
-        ${CONNECTION_CONFIG}
-        ${CAS_AUTH}
           - url: https://gbm.gnome.org:11003
             push: false
         ${CONNECTION_CONFIG}
@@ -152,10 +98,6 @@ runs:
 
         source-caches:
           servers:
-          - url: ${CAS_URL}
-            push: ${PUSH_FLAG}
-        ${CONNECTION_CONFIG}
-        ${CAS_AUTH}
           - url: https://gbm.gnome.org:11003
             push: false
         ${CONNECTION_CONFIG}
@@ -163,6 +105,21 @@ runs:
             push: false
         ${CONNECTION_CONFIG}
         BSTCONFCACHE
+
+        # OWNER TODO: to enable a private artifact/source cache, create repo
+        # variable CAS_URL (e.g. https://cache.example.org:11002), repo variable
+        # CASD_CLIENT_CERT, and repo secret CASD_CLIENT_KEY. The block below
+        # prepends that CAS as the push target automatically.
+        if [[ -n "${CAS_URL:-}" ]] &&
+           [[ -n "${CASD_CLIENT_CERT:-}" ]] && [[ -n "${CASD_CLIENT_KEY:-}" ]]; then
+          PUSH_FLAG="${ENABLE_PUSH:-true}"
+          cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFCAS
+          - url: ${CAS_URL}
+            push: ${PUSH_FLAG}
+        ${CONNECTION_CONFIG}
+        ${CLIENT_AUTH}
+        BSTCONFCAS
+          echo "Private CAS enabled (push=${PUSH_FLAG}): ${CAS_URL}"
         fi
 
         cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<'BSTCONFCACHEBLOCK'
@@ -172,27 +129,22 @@ runs:
         BSTCONFCACHEBLOCK
 
         if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]]; then
-          # Like GBM, let RE inherit cache.storage-service instead of defining
-          # a separate RE storage service. The runner's local casd is a proxy
-          # and artifact payloads stay on the BuildBox host until needed.
-          # Keep this out of fetch-only publish configs: export must materialize
-          # the final artifact on the runner.
           cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFREMOTE
           storage-service:
             url: ${CAS_URL}
         ${CONNECTION_CONFIG}
-        ${CAS_AUTH}
+        ${CLIENT_AUTH}
 
         remote-execution:
           execution-service:
             url: ${CAS_URL}
         ${CONNECTION_CONFIG}
-        ${CAS_AUTH}
+        ${CLIENT_AUTH}
           action-cache-service:
             url: ${CAS_URL}
             push: true
         ${CONNECTION_CONFIG}
-        ${CAS_AUTH}
+        ${CLIENT_AUTH}
         BSTCONFREMOTE
           echo "Remote execution enabled: yes"
         else

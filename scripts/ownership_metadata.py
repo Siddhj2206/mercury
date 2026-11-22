@@ -20,8 +20,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
 
-INTEGRATION_COMPONENT = "dakota.integration"
-INTEGRATION_PRODUCER = "dakota:integration"
+INTEGRATION_COMPONENT = "mercury.integration"
+INTEGRATION_PRODUCER = "mercury:integration"
 INTEGRATION_INTERVAL = "monthly"
 SCHEMA = 3
 

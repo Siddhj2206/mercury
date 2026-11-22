@@ -11,6 +11,6 @@ config:
     - |
       cd /layer
       oci-builder \
-        --name ghcr.io/projectbluefin/python-minimal \
+        --name ghcr.io/siddhj2206/python-minimal \
         --entrypoint /usr/bin/python3 \
         . /oci-image

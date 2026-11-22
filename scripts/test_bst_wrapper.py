@@ -31,7 +31,7 @@ class BstWrapperTests(unittest.TestCase):
             }
             env.update(HOME=str(root), PATH=f"{root}:{env['PATH']}", **overrides)
             result = subprocess.run(
-                ["just", "bst", "show", "oci/bluefin.bst"],
+                ["just", "bst", "show", "oci/mercury.bst"],
                 cwd=root, env=env, capture_output=True, text=True,
                 check=True, timeout=15,
             )
@@ -41,8 +41,8 @@ class BstWrapperTests(unittest.TestCase):
 
     def test_default_uses_project_cpu_baseline(self):
         self.assertEqual(self.run_wrapper(), [
-            "--no-interactive", "-o", "gaming", "false",
-            "-o", "secure_boot_signing", "false", "show", "oci/bluefin.bst",
+            "--no-interactive", "-o", "secure_boot_signing", "false",
+            "show", "oci/mercury.bst",
         ])
 
     def test_explicit_cpu_override_is_preserved(self):
@@ -66,14 +66,14 @@ class BstWrapperTests(unittest.TestCase):
         self.assertEqual(self.run_wrapper(
             BST_FLAGS="-o x86_64_v3 true",
             BST_FLAGS_OVERRIDE="--option x86_64_v3 false",
-        ), ["--option", "x86_64_v3", "false", "show", "oci/bluefin.bst"])
+        ), ["--option", "x86_64_v3", "false", "show", "oci/mercury.bst"])
 
-    def test_gaming_and_signing_still_propagate(self):
+    def test_signing_still_propagates(self):
         self.assertEqual(self.run_wrapper(
-            BUILD_GAMING="true", BUILD_SECURE_BOOT_SIGNING="true",
+            BUILD_SECURE_BOOT_SIGNING="true",
         ), [
-            "--no-interactive", "-o", "gaming", "true",
-            "-o", "secure_boot_signing", "true", "show", "oci/bluefin.bst",
+            "--no-interactive", "-o", "secure_boot_signing", "true",
+            "show", "oci/mercury.bst",
         ])
 
 

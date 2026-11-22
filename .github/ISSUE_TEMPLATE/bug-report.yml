@@ -25,10 +25,9 @@ body:
       value: |
         > **How this gets resolved:**
         > ```
-        > filed ──▶ needs-triage ──▶ triage accepted ──▶ done
+        > filed ──▶ triaged ──▶ done
         > ```
-        > You filed it. Categorize with `/area <area>` or `/kind <kind>`.
-        > A triager or maintainer accepts it with `/triage accepted` and sets `/priority`.
+        > You filed it. The maintainer picks an area and a priority.
 
   - type: checkboxes
     id: checks
@@ -70,10 +69,9 @@ body:
       description: "Where does this live? Helps route to the right epic."
       options:
         - "hardware / drivers"
-        - "GNOME / desktop"
+        - "niri / DMS / desktop"
         - "bootc / image updates"
         - "install / ISO"
-        - "nvidia"
         - "just recipes / ujust"
         - "flatpak / apps"
         - "brew / CLI tools"

@@ -5,7 +5,7 @@ Pipe BST build stdout through this script to get live progress lines and a
 final step summary without losing any of the original output.
 
 Usage (in build.yml):
-    just bst build oci/bluefin.bst 2>&1 | python3 files/scripts/bst-progress.py
+    just bst build oci/mercury.bst 2>&1 | python3 files/scripts/bst-progress.py
 
 Environment variables:
     ELEMENT_TOTAL       Total element count from a preceding `bst show` step.

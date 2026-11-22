@@ -1,5 +1,9 @@
 name: Renovate Auto-merge
 
+# Enables GitHub auto-merge on renovate/* PRs once Validate passes.
+# Requires "Allow auto-merge" enabled in repo settings (OWNER TODO).
+# GITHUB_TOKEN is enough — no GitHub App needed for a single-maintainer repo.
+
 on:
   workflow_run:
     workflows: ["Validate"]
@@ -12,12 +16,16 @@ permissions:
 jobs:
   automerge:
     if: github.event.workflow_run.conclusion == 'success'
-    uses: projectbluefin/actions/.github/workflows/reusable-renovate-automerge.yml@v1
-    with:
-      head_sha: ${{ github.event.workflow_run.head_sha }}
-      base_branch: testing
-    # Merge-queue groups created by github-actions[bot] never dispatch
-    # required checks; the app token keeps the queue from wedging.
-    secrets:
-      app_id: ${{ secrets.MERGERAPTOR_APP_ID }}
-      private_key: ${{ secrets.MERGERAPTOR_PRIVATE_KEY }}
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Enable auto-merge on renovate PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for pr in $(gh pr list --repo "$GITHUB_REPOSITORY" \
+              --search "head:renovate/" \
+              --json number --jq '.[].number'); do
+            gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash \
+              || echo "::warning::could not enable auto-merge on PR $pr"
+          done

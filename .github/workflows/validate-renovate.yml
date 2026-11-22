@@ -1,21 +1,24 @@
 name: Validate Renovate Config
-# Thin caller — logic lives in projectbluefin/actions/reusable-validate-renovate.yml
 
 on:
   pull_request:
     paths:
       - ".github/renovate.json5"
   push:
-    branches:
-      - main
-      - testing
+    branches: [main]
     paths:
       - ".github/renovate.json5"
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   validate:
-    permissions:
-      contents: read
-    uses: projectbluefin/actions/.github/workflows/reusable-validate-renovate.yml@v1
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # OWNER TODO: pin renovate to an exact version once the config settles.
+      - name: Validate renovate.json5
+        run: npx --yes --package renovate renovate-config-validator .github/renovate.json5

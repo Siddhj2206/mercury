@@ -92,7 +92,7 @@ class DescribeTests(unittest.TestCase):
     def describe(self, old_ref, new_ref, url="github:example/widget.git", note=""):
         diff = f"-  ref: {old_ref}\n+  ref: {new_ref}\n"
         return track_bundle.describe_element_update(
-            "widget", "chore(deps): update widget", "elements/bluefin/widget.bst",
+            "widget", "chore(deps): update widget", "elements/mercury/widget.bst",
             element(new_ref, url), diff, note)
 
     def test_versioned_bump(self):
@@ -100,7 +100,7 @@ class DescribeTests(unittest.TestCase):
         self.assertEqual(u.title, "chore(deps): update widget: v1.2-0 -> v1.3-0")
         self.assertEqual(u.change, "`v1.2-0` → `v1.3-0`")
         self.assertEqual(u.links, f"[compare](https://github.com/example/widget/compare/{SHA_A}...{SHA_B})")
-        self.assertEqual(u.row(), f"| `bluefin/widget.bst` | `v1.2-0` → `v1.3-0` | {u.links} |  |")
+        self.assertEqual(u.row(), f"| `mercury/widget.bst` | `v1.2-0` → `v1.3-0` | {u.links} |  |")
 
     def test_unversioned_bump_falls_back_to_short_commits(self):
         u = self.describe(SHA_A, SHA_B, url="gnome:widget.git", note="review: x")
@@ -113,7 +113,7 @@ class DescribeTests(unittest.TestCase):
         diff = ("   ref:\n-    version: 1.90.0\n-    sha256sum: " + "a" * 64 +
                 "\n+    version: 1.92.0\n+    sha256sum: " + "b" * 64 + "\n")
         u = track_bundle.describe_element_update(
-            "boost", "chore(deps): update boost", "elements/bluefin/boost.bst",
+            "boost", "chore(deps): update boost", "elements/mercury/boost.bst",
             "sources:\n- kind: anitya\n  project-id: 6845\n", diff)
         self.assertEqual(u.title, "chore(deps): update boost: 1.90.0 -> 1.92.0")
         self.assertEqual(u.change, "`1.90.0` → `1.92.0`")
@@ -127,7 +127,7 @@ class DescribeTests(unittest.TestCase):
 class BodyTests(unittest.TestCase):
     def updates(self, *notes):
         return [track_bundle.Update(slug=f"e{i}", title=f"chore(deps): update e{i}",
-                                    files=[f"elements/bluefin/e{i}.bst"], note=n)
+                                    files=[f"elements/mercury/e{i}.bst"], note=n)
                 for i, n in enumerate(notes)]
 
     def test_callout_only_with_notes(self):
@@ -136,12 +136,12 @@ class BodyTests(unittest.TestCase):
 
     def test_stuck_and_pinned_elements_are_listed(self):
         body = track_bundle.render_body(
-            self.updates(""), "u", failures={"bluefin/a.bst": "patch | failed\nto apply"},
-            held=["b"], pinned={"bluefin/c.bst": "a decision"})
+            self.updates(""), "u", failures={"mercury/a.bst": "patch | failed\nto apply"},
+            held=["b"], pinned={"mercury/c.bst": "a decision"})
         self.assertIn("### Not updated", body)
-        self.assertIn("| `bluefin/a.bst` | patch \\| failed to apply |", body)
+        self.assertIn("| `mercury/a.bst` | patch \\| failed to apply |", body)
         self.assertIn("Held by `TRACK_BUNDLE_SKIP`: `b`.", body)
-        self.assertIn("| `bluefin/c.bst` | a decision |", body)
+        self.assertIn("| `mercury/c.bst` | a decision |", body)
         plain = track_bundle.render_body(self.updates(""), "u")
         for heading in ("Not updated", "Held out", "Pinned on purpose"):
             self.assertNotIn(heading, plain)
@@ -151,8 +151,8 @@ class BodyTests(unittest.TestCase):
             tracked = Path(tmp)
             self.assertEqual(track_bundle.load_failures(tracked), {})
             (tracked / "failed").mkdir()
-            (tracked / "failed/a.json").write_text('{"element": "bluefin/a.bst", "error": "boom"}')
-            self.assertEqual(track_bundle.load_failures(tracked), {"bluefin/a.bst": "boom"})
+            (tracked / "failed/a.json").write_text('{"element": "mercury/a.bst", "error": "boom"}')
+            self.assertEqual(track_bundle.load_failures(tracked), {"mercury/a.bst": "boom"})
 
     def test_title(self):
         self.assertEqual(track_bundle.bundle_title(self.updates("")), "chore(deps): update e0")
@@ -203,7 +203,7 @@ class GitFixture(unittest.TestCase):
                               text=True, capture_output=True).stdout.strip()
 
     def path(self, name):
-        return f"elements/bluefin/{name}.bst"
+        return f"elements/mercury/{name}.bst"
 
     def write(self, name, text):
         target = self.work / self.path(name)
@@ -223,7 +223,7 @@ class RecordElementTests(GitFixture):
         output.write_text("")
         with mock.patch.dict(os.environ, {"GITHUB_OUTPUT": str(output)}), \
                 contextlib.chdir(self.work), contextlib.redirect_stdout(io.StringIO()):
-            rc = track_bundle.main(["record-element", "--element", "bluefin/a.bst",
+            rc = track_bundle.main(["record-element", "--element", "mercury/a.bst",
                                     "--title", "chore(deps): update a", "--note", "review",
                                     "--out", str(self.tracked)])
         self.assertEqual(rc, 0)
@@ -239,13 +239,13 @@ class RecordElementTests(GitFixture):
         self.assertFalse(self.tracked.exists())
 
     def test_non_ref_change_is_recorded_even_with_same_commit(self):
-        original = element(f"v1.0-0-g{SHA_A}") + "variables:\n  ogc-localversion: '-ogc1'\n"
+        original = element(f"v1.0-0-g{SHA_A}") + "variables:\n  kernel-localversion: '-k1'\n"
         self.write("a", original)
         self.git("add", self.path("a"))
         self.git("commit", "-qm", "kernel fixture")
-        self.write("a", original.replace("'-ogc1'", "'-ogc2'"))
+        self.write("a", original.replace("'-k1'", "'-k2'"))
         self.assertEqual(self.record(), "slug=a\n")
-        self.assertIn("ogc-localversion: '-ogc2'",
+        self.assertIn("kernel-localversion: '-k2'",
                       (self.tracked / "files" / self.path("a")).read_text())
 
     def test_real_change_is_recorded(self):
@@ -305,7 +305,7 @@ class ComposeTests(GitFixture):
         create = self.gh_calls()[-1]
         self.assertEqual(create["argv"][:2], ["pr", "create"])
         self.assertIn("chore(deps): update 2 BuildStream sources", create["argv"])
-        self.assertIn("| `bluefin/b.bst` | x |  | review: core |", create["stdin"])
+        self.assertIn("| `mercury/b.bst` | x |  | review: core |", create["stdin"])
         self.assertIn("[!IMPORTANT]", create["stdin"])
 
     def test_skip_holds_element_out(self):
@@ -336,8 +336,8 @@ class ComposeTests(GitFixture):
         self.assertFalse(result.pushed)
         self.assertEqual(self.git("rev-parse", "origin/auto/track-bundle"), tip)
         body = self.gh_calls()[-1]["stdin"]
-        self.assertIn("bluefin/a.bst", body)
-        self.assertNotIn("bluefin/b.bst", body)
+        self.assertIn("mercury/a.bst", body)
+        self.assertNotIn("mercury/b.bst", body)
 
     def test_new_bump_pushes_and_edits_existing_pr(self):
         self.track("a", SHA_B)

@@ -19,97 +19,59 @@ CORE = "core-junctions"
 # Overridden into gnome-build-meta, so it must provide every plugin GBM's
 # project.conf loads: copy GBM's pin rather than tracking it independently.
 PLUGINS_COMMUNITY = "elements/plugins/buildstream-plugins-community.bst"
-TAILSCALE_FEED = "https://pkgs.tailscale.com/stable/?mode=json"
 
 # This is also CI's matrix. Keep review notes with the corresponding element.
 TRACKED = [
-    ("bluefin/brew.bst", "brew", ""),
-    ("bluefin/common.bst", "common", ""),
-    ("bluefin/jetbrains-mono.bst", "jetbrains-mono", ""),
-    ("bluefin/shell-extensions/app-indicators.bst", "app-indicators extension", ""),
-    ("bluefin/shell-extensions/blur-my-shell.bst", "blur-my-shell extension", ""),
-    ("bluefin/shell-extensions/dash-to-dock.bst", "dash-to-dock extension", ""),
-    ("bluefin/shell-extensions/gsconnect.bst", "gsconnect extension", ""),
-    ("bluefin/shell-extensions/custom-command-menu.bst", "custom-command-menu extension", ""),
-    ("bluefin/efibootmgr.bst", "efibootmgr", ""),
-    ("bluefin/shell-extensions/caffeine.bst", "caffeine extension", ""),
-    ("bluefin/distrobox.bst", "distrobox", ""),
-    ("bluefin/xdg-terminal-exec.bst", "xdg-terminal-exec", ""),
-    ("bluefin/nautilus-python.bst", "nautilus-python", ""),
+    ("mercury/brew.bst", "brew", ""),
+    ("mercury/jetbrains-mono.bst", "jetbrains-mono", ""),
+    ("mercury/efibootmgr.bst", "efibootmgr", ""),
+    ("mercury/distrobox.bst", "distrobox", ""),
+    ("mercury/xdg-terminal-exec.bst", "xdg-terminal-exec", ""),
     ("gnomeos-deps/bootc.bst", "bootc", "review: core system component"),
     ("core/dnsmasq.bst", "dnsmasq", "review: core system component"),
-    ("bluefin/sudo-rs.bst", "sudo-rs", "review: core system component"),
-    ("bluefin/uutils-coreutils.bst", "uutils-coreutils", "review: core system component"),
-    # No release tags: every update is unreleased code.
-    ("bluefin/shell-extensions/gradia-capture.bst", "gradia-capture extension",
-     "review: unreleased branch head"),
-    ("bluefin/shell-extensions/power-status-color.bst", "power-status-color extension",
-     "review: unreleased branch head; bluefin-bling layout changes break the install"),
+    ("mercury/sudo-rs.bst", "sudo-rs", "review: core system component"),
+    ("mercury/uutils-coreutils.bst", "uutils-coreutils", "review: core system component"),
     # Despite its name this is a docker source, not a release tarball.
-    ("bluefin/brew-tarball.bst", "brew-tarball", ""),
-    ("bluefin/wallpapers.bst", "wallpapers", ""),
+    ("mercury/brew-tarball.bst", "brew-tarball", ""),
     # Same git source and track pattern as core/linux-fdsdk.bst, so both move
     # to the same stable tag on the same run.
-    ("bluefin/hyperv-daemons.bst", "Hyper-V daemons",
+    ("mercury/hyperv-daemons.bst", "Hyper-V daemons",
      "review: tools/hv from the core/linux-fdsdk.bst tree"),
-    ("bluefin/brlaser.bst", "brlaser", ""),
-    ("bluefin/fastfetch.bst", "fastfetch", ""),
-    ("bluefin/gnome-epub-thumbnailer.bst", "gnome-epub-thumbnailer", ""),
-    ("bluefin/kanata.bst", "kanata", ""),
-    ("bluefin/libtracefs.bst", "libtracefs", ""),
-    ("bluefin/libvirt.bst", "libvirt", "review: libvirt and its git submodule"),
-    ("bluefin/lm-sensors.bst", "lm-sensors", ""),
+    ("mercury/brlaser.bst", "brlaser", ""),
+    ("mercury/fastfetch.bst", "fastfetch", ""),
+    ("mercury/kanata.bst", "kanata", ""),
+    ("mercury/libtracefs.bst", "libtracefs", ""),
+    ("mercury/libvirt.bst", "libvirt", "review: libvirt and its git submodule"),
+    ("mercury/lm-sensors.bst", "lm-sensors", ""),
     # The track pattern keeps the LV2 build on the 1.1 series.
-    ("bluefin/lsp-plugins-lv2.bst", "lsp-plugins-lv2", ""),
-    ("bluefin/nethogs.bst", "nethogs", ""),
-    ("bluefin/nspawn.bst", "nspawn",
+    ("mercury/lsp-plugins-lv2.bst", "lsp-plugins-lv2", ""),
+    ("mercury/nethogs.bst", "nethogs", ""),
+    ("mercury/nspawn.bst", "nspawn",
      "review: CLI, D-Bus, and polkit changes across major versions"),
-    ("bluefin/sysstat.bst", "sysstat", ""),
-    ("bluefin/ddcutil.bst", "ddcutil",
+    ("mercury/sysstat.bst", "sysstat", ""),
+    ("mercury/ddcutil.bst", "ddcutil",
      "review: libddcutil display-detection changes have crashed GPU drivers"),
-    ("bluefin/trace-cmd.bst", "trace-cmd", ""),
-    ("bluefin/virtiofsd.bst", "virtiofsd", ""),
-    ("bluefin/ydotool.bst", "ydotool", ""),
-    ("bluefin/shell-extensions/fuzzy-application-search.bst",
-     "fuzzy-application-search extension", "review: major tags follow GNOME Shell releases"),
-    ("bluefin/shell-extensions/tailscale-qs.bst", "tailscale-qs extension",
-     "review: local patch still applies"),
-    ("bluefin-nvidia/nvidia-container-toolkit.bst", "nvidia-container-toolkit", ""),
-    ("bluefin-nvidia/nvidia-vaapi-driver.bst", "nvidia-vaapi-driver", ""),
-    ("gaming/xorg-lib-xmu.bst", "libXmu", ""),
-    ("gaming/xorg-lib-xres.bst", "libXres", ""),
+    ("mercury/trace-cmd.bst", "trace-cmd", ""),
+    ("mercury/virtiofsd.bst", "virtiofsd", ""),
+    ("mercury/ydotool.bst", "ydotool", ""),
     # Branch heads: every update is unreleased code.
-    ("bluefin/gnome-ponytail-daemon.bst", "gnome-ponytail-daemon",
-     "review: unreleased branch head"),
-    ("bluefin/usbmuxd.bst", "usbmuxd", "review: unreleased branch head"),
-    ("bluefin/shell-extensions/bazaar-companion.bst", "bazaar-companion extension",
-     "review: unreleased branch head"),
-    ("bluefin/shell-extensions/budslink-companion.bst", "budslink-companion extension",
-     "review: unreleased branch head; local patch still applies"),
-    # bluefin-bling is a monorepo: a layout change upstream breaks the install.
-    ("bluefin/shell-extensions/syncthing-toggle.bst", "syncthing-toggle extension",
-     "review: unreleased branch head; bluefin-bling layout changes break the install"),
-    ("gaming/gamescope.bst", "gamescope",
-     "review: a submodule added, removed, or moved upstream needs the element's list edited"),
-    ("gaming/gamescope-session.bst", "gamescope-session", "review: unreleased branch head"),
-    ("gaming/luajit.bst", "LuaJIT", "review: unreleased v2.1 branch head"),
-    # libiio.so.0 is what InputPlumber's release binary links (through 0.77).
-    ("gaming/libiio.bst", "libiio", ""),
+    ("mercury/usbmuxd.bst", "usbmuxd", "review: unreleased branch head"),
     # IBus Rime stack: each library follows its own release tags.
-    ("bluefin/glog.bst", "glog", ""),
-    ("bluefin/ibus-rime.bst", "ibus-rime", ""),
-    ("bluefin/leveldb.bst", "leveldb", ""),
-    ("bluefin/librime.bst", "librime",
+    ("mercury/glog.bst", "glog", ""),
+    ("mercury/ibus-rime.bst", "ibus-rime", ""),
+    ("mercury/leveldb.bst", "leveldb", ""),
+    ("mercury/librime.bst", "librime",
      "review: the librime-lua plugin follows its unreleased branch head"),
-    ("bluefin/marisa-trie.bst", "marisa-trie", ""),
-    ("bluefin/opencc.bst", "OpenCC", ""),
-    ("bluefin/yaml-cpp.bst", "yaml-cpp", ""),
-    ("bluefin/tiptop.bst", "tiptop", "review: unreleased branch head"),
+    ("mercury/marisa-trie.bst", "marisa-trie", ""),
+    ("mercury/opencc.bst", "OpenCC", ""),
+    ("mercury/yaml-cpp.bst", "yaml-cpp", ""),
+    ("mercury/tiptop.bst", "tiptop", "review: unreleased branch head"),
     # anitya sources: release-monitoring.org names the newest stable release.
-    ("bluefin/boost.bst", "boost", ""),
-    ("bluefin/nfs-utils.bst", "nfs-utils", ""),
-    ("bluefin/nicstat.bst", "nicstat", ""),
-    ("bluefin/rpcbind.bst", "rpcbind", ""),
+    ("mercury/boost.bst", "boost", ""),
+    ("mercury/nfs-utils.bst", "nfs-utils", ""),
+    ("mercury/nicstat.bst", "nicstat", ""),
+    ("mercury/rpcbind.bst", "rpcbind", ""),
+    ("system/greetd.bst", "greetd", ""),
     # Private toolchain for Syncthing; any newer Go satisfies its go.mod.
     ("core/syncthing-go.bst", "Go (Syncthing toolchain)", ""),
     ("plugins/buildstream-plugins.bst", "buildstream-plugins",
@@ -117,25 +79,21 @@ TRACKED = [
 ]
 
 
-# Kernel refs are owned independently by testing and next. Respect each
-# checkout's track patterns; never widen a stable series or force next to stable.
+# The kernel ref is owned independently by testing and next. Respect each
+# checkout's track pattern; never widen a stable series or force next to stable.
 KERNELS = [
     ("core/linux-fdsdk.bst", "Linux kernel",
-     "review: kernel patches, vendored FDSDK helpers, and NVIDIA build"),
-    ("core/linux-ogc.bst", "OGC kernel",
-     "review: OGC patches and gaming NVIDIA build"),
+     "review: kernel patches and vendored FDSDK helpers"),
 ]
 
 
 # Elements whose pin must equal another component's, so they move with it
 # instead of on their own: the owner's updater rewrites them.
 DERIVED = {
-    # Lockstep with gnome-build-meta's core-deps/vte.bst (one VTE ABI).
-    "bluefin/vte.bst": "core-junctions",
     # Lockstep with freedesktop-sdk's alsa-lib (matching libasound API).
-    "bluefin/alsa-utils.bst": "core-junctions",
+    "mercury/alsa-utils.bst": "core-junctions",
     # Ghostty's minimum_zig_version; Zig breaks compatibility between minors.
-    "bluefin/zig.bst": "bluefin/ghostty.bst",
+    "mercury/zig.bst": "mercury/ghostty.bst",
 }
 
 
@@ -145,10 +103,7 @@ DERIVED = {
 # A reason is a decision someone must make before the pin can move, not a
 # missing updater.
 PINNED = {
-    "bluefin/fedora-shim.bst": "Secure Boot trust: a shim change alters what firmware will boot",
-    # Upstream's desktop-mode fallback now calls steamosctl, whose session
-    # switching only writes SDDM configuration; Dakota uses GDM.
-    "gaming/gamescope-session-steam.bst": "newer sessions need steamos-manager, which supports only SDDM",
+    "mercury/fedora-shim.bst": "Secure Boot trust: a shim change alters what firmware will boot",
 }
 
 
@@ -194,123 +149,60 @@ class Release:
 
 
 RELEASES = {
-    "bluefin/gum.bst": Release(
+    "mercury/gum.bst": Release(
         "charmbracelet/gum", r"download/(?P<version>v[0-9.]+)/gum_[0-9.]+_",
         "download/{tag}/gum_{version}_", x86_asset_suffix="_Linux_x86_64.tar.gz"),
-    "bluefin/gtk4-layer-shell.bst": Release(
+    "mercury/gtk4-layer-shell.bst": Release(
         "wmww/gtk4-layer-shell", r"tags/(?P<version>v[0-9.]+)\.tar\.gz",
         "tags/{tag}.tar.gz"),
-    "bluefin/tailscale.bst": Release(
-        "tailscale/tailscale", r"tailscale_(?P<version>[0-9.]+)_",
-        "tailscale_{version}_", x86_asset_suffix="_amd64.tgz"),
-    "bluefin/uupd.bst": Release(
+    "mercury/uupd.bst": Release(
         "ublue-os/uupd", r"download/(?P<version>v[^/]+)/", "download/{tag}/",
         x86_asset_suffix="_Linux_x86_64.tar.gz"),
-    "bluefin/jetbrains-mono-nerd-font.bst": Release(
+    "mercury/jetbrains-mono-nerd-font.bst": Release(
         "ryanoasis/nerd-fonts", r"download/(?P<version>v[^/]+)/", "download/{tag}/"),
-    # Published weekly as immutable YY.MM.N releases.
-    "bluefin/bluefin-docs.bst": Release(
-        "projectbluefin/documentation",
-        r"download/(?P<version>[0-9]{2}\.[0-9]{2}\.[0-9]+)/bluefin\.pdf",
-        "download/{tag}/bluefin.pdf", tag_pattern=r"[0-9]{2}\.[0-9]{2}\.[0-9]+"),
     # No versioned GitHub releases (only a rolling "tip"), so read tags. Each
     # release changes the Zig dependency graph, which the generator re-pins.
-    "bluefin/ghostty.bst": Release(
+    "mercury/ghostty.bst": Release(
         "ghostty-org/ghostty", r"ghostty_releases:(?P<version>[0-9.]+)/", "",
         endpoint="tags?per_page=100",
         query='[.[].name | select(test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$"))]'
               ' | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | last',
-        generator="files/scripts/generate_ghostty_sources.py", derived=("bluefin/zig.bst",)),
-    "bluefin/chairlift.bst": Release(
-        "projectbluefin/chairlift", r"download/(?P<version>v[0-9.]+)/chairlift_[0-9.]+_",
-        "download/{tag}/chairlift_{version}_", x86_asset_suffix="_linux_amd64.tar.gz"),
-    "bluefin/umotd.bst": Release(
+        generator="files/scripts/generate_ghostty_sources.py", derived=("mercury/zig.bst",)),
+    "mercury/umotd.bst": Release(
         "projectbluefin/umotd", r"download/(?P<version>v[0-9.]+)/umotd_[0-9.]+_",
         "download/{tag}/umotd_{version}_", x86_asset_suffix="_linux_amd64"),
-    "bluefin/uwelcome.bst": Release(
-        "projectbluefin/uwelcome", r"download/(?P<version>v[0-9.]+)/uwelcome_[0-9.]+_",
-        "download/{tag}/uwelcome_{version}_", x86_asset_suffix="_linux_amd64"),
     # The source archive vendors Go modules; core/syncthing-go.bst may need to follow.
-    "bluefin/syncthing.bst": Release(
+    "mercury/syncthing.bst": Release(
         "syncthing/syncthing",
         r"download/(?P<version>v[0-9.]+)/syncthing-source-v[0-9.]+\.tar\.gz",
         "download/{tag}/syncthing-source-{tag}.tar.gz"),
-    "bluefin/ifuse.bst": Release(
+    "mercury/ifuse.bst": Release(
         "libimobiledevice/ifuse", r"download/(?P<version>[0-9.]+)/ifuse-[0-9.]+\.tar",
         "download/{tag}/ifuse-{version}.tar", tag_pattern=r"[0-9]+\.[0-9]+\.[0-9]+"),
-    "bluefin/powertop.bst": Release(
+    "mercury/powertop.bst": Release(
         "fenrus75/powertop", r"tags/(?P<version>v[0-9.]+)\.tar\.gz", "tags/{tag}.tar.gz"),
-    "bluefin/pam-u2f.bst": Release(
+    "system/nx.bst": Release(
+        "Siddhj2206/nx", r"download/(?P<version>v[0-9.]+)/nx-v[0-9.]+-fc45-",
+        "download/{tag}/nx-{tag}-fc45-", x86_asset_suffix="-x86_64.tar.gz"),
+    "mercury/pam-u2f.bst": Release(
         "", r"pam_u2f-(?P<version>[0-9.]+)\.tar\.gz", "pam_u2f-{version}.tar.gz",
         tag_pattern=r"[0-9]+\.[0-9]+\.[0-9]+",
         feed="https://developers.yubico.com/pam-u2f/Releases/atom.xml",
         feed_pattern=r"pam_u2f-(?P<version>[0-9.]+)\.tar\.gz",
         link="https://github.com/Yubico/pam-u2f/releases/tag/pam_u2f-{version}"),
-    "gaming/inputplumber.bst": Release(
-        "ShadowBlip/InputPlumber", r"download/(?P<version>v[0-9.]+)/inputplumber-x86_64",
-        "download/{tag}/inputplumber-x86_64"),
-    "gaming/vkbasalt.bst": Release(
-        "DadSchoorse/vkBasalt", r"download/(?P<version>v[0-9.]+)/vkBasalt-[0-9.]+\.tar",
-        "download/{tag}/vkBasalt-{version}.tar", tag_pattern=r"v[0-9]+(?:\.[0-9]+){2,3}"),
     # The font archive and its fontconfig, license, and audit files.
-    "bluefin/nerd-fonts-symbols.bst": Release(
+    "mercury/nerd-fonts-symbols.bst": Release(
         "ryanoasis/nerd-fonts", r"(?<=/)(?P<version>v[0-9]+\.[0-9]+\.[0-9]+)(?=/)", "{tag}",
         urls=4),
     # The binary and its three shell completions; the ARM binary stays paused.
-    "bluefin/tealdeer.bst": Release(
+    "mercury/tealdeer.bst": Release(
         "tealdeer-rs/tealdeer", r"download/(?P<version>v[0-9.]+)/", "download/{tag}/",
         urls=4, skip="aarch64"),
-    "bluefin/open-vm-tools.bst": Release(
+    "mercury/open-vm-tools.bst": Release(
         "vmware/open-vm-tools",
         r"download/(?P<version>stable-[0-9.]+)/open-vm-tools-[0-9.]+-[0-9]+\.tar\.gz",
         "download/{tag}/{asset}", tag_pattern=r"stable-[0-9]+\.[0-9]+\.[0-9]+",
         asset=r"open-vm-tools-[0-9.]+-[0-9]+\.tar\.gz", note="review: local GCC patch still applies"),
-    "gaming/mangohud.bst": Release(
-        "flightlessmango/MangoHud",
-        r"download/(?P<version>v[0-9.]+)/MangoHud-[0-9.]+\.r0\.g[0-9a-f]+\.tar\.gz",
-        "download/{tag}/{asset}", asset=r"MangoHud-[0-9.]+\.r0\.g[0-9a-f]+\.tar\.gz"),
-    # A data file with no releases: follow the default branch.
-    "gaming/sdl-gamecontrollerdb.bst": Release(
-        "mdqinc/SDL_GameControllerDB", r"SDL_GameControllerDB/(?P<version>[0-9a-f]{40})/",
-        "SDL_GameControllerDB/{tag}/", endpoint="commits/master", query=".sha",
-        tag_pattern=r"[0-9a-f]{40}"),
-    # extensions.gnome.org: newest upload declaring the shipped Shell version.
-    "bluefin/shell-extensions/quicksettings-audio-devices-hider.bst": Release(
-        "", r"version_tag=(?P<version>[0-9]+)", "version_tag={tag}", tag_pattern=r"[0-9]+",
-        feed="https://extensions.gnome.org/extension-info/"
-             "?uuid=quicksettings-audio-devices-hider@marcinjahn.com&shell_version={shell}",
-        feed_pattern=r'"version_tag":\s*(?P<version>[0-9]+)'),
-    "bluefin/shell-extensions/quicksettings-audio-devices-renamer.bst": Release(
-        "", r"version_tag=(?P<version>[0-9]+)", "version_tag={tag}", tag_pattern=r"[0-9]+",
-        feed="https://extensions.gnome.org/extension-info/"
-             "?uuid=quicksettings-audio-devices-renamer@marcinjahn.com&shell_version={shell}",
-        feed_pattern=r'"version_tag":\s*(?P<version>[0-9]+)'),
-    "bluefin/shell-extensions/tilingshell.bst": Release(
-        "", r"version_tag=(?P<version>[0-9]+)", "version_tag={tag}", tag_pattern=r"[0-9]+",
-        feed="https://extensions.gnome.org/extension-info/"
-             "?uuid=tilingshell@ferrarodomenico.com&shell_version={shell}",
-        feed_pattern=r'"version_tag":\s*(?P<version>[0-9]+)'),
-    # Point releases of the hand-chosen driver branch.
-    "bluefin-nvidia/nvidia-drivers.bst": Release(
-        "", r"(?P<version>[0-9]{3}\.[0-9]+\.[0-9]+)", "{version}",
-        tag_pattern=r"[0-9]{3}\.[0-9]+\.[0-9]+", series=1,
-        feed="https://download.nvidia.com/XFree86/Linux-x86_64/",
-        feed_pattern=r"href='(?P<version>[0-9]{3}\.[0-9]+\.[0-9]+)/'",
-        keys=("filename", "nvidia-version"),
-        link="https://www.nvidia.com/en-us/drivers/details/?q={version}",
-        note="review: build the NVIDIA kernel modules against the shipped kernels"),
-    # Valve's apt pool keeps every launcher at a versioned path.
-    "gaming/steam-native.bst": Release(
-        "", r"steam-launcher_(?P<version>[0-9.]+)_amd64\.deb", "steam-launcher_{version}_amd64.deb",
-        tag_pattern=r"[0-9]+(?:\.[0-9]+){2,3}", keys=("filename",),
-        feed="https://repo.steampowered.com/steam/dists/stable/steam/binary-amd64/Packages",
-        feed_pattern=r"Filename: pool/steam/s/steam/steam-launcher_(?P<version>[0-9.]+)_amd64\.deb"),
-    # Debian 12 security and point-release rebuilds; GTK 2 itself is final.
-    "gaming/gtk2-i686.bst": Release(
-        "", r"libgtk2\.0-0_(?P<version>[0-9][^_/]*)_i386\.deb", "libgtk2.0-0_{version}_i386.deb",
-        tag_pattern=r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\+deb12u[0-9]+", keys=("filename",),
-        feed="https://api.ftp-master.debian.org/madison?package=libgtk2.0-0&a=i386&s=bookworm&f=json",
-        feed_pattern=r'"(?P<version>[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\+deb12u[0-9]+)"'),
 }
 
 
@@ -328,32 +220,6 @@ def run(*args: str, capture: bool = False) -> str:
 def track(element: str) -> None:
     run("just", "bst", "--no-interactive", "-o", "arch", "x86_64",
         "source", "track", element)
-
-
-# Meson wraps a tracked element stages as git_repo sources at
-# subprojects/<name>: after tracking, copy each wrap's pinned revision from the
-# tracked commit, so the wraps move with the project that declares them.
-WRAPS = {"gaming/gamescope.bst": ("OpenGamingCollective/gamescope", ("glm", "stb"))}
-
-
-def sync_wraps(element: str) -> None:
-    repo, names = WRAPS[element]
-    path = ROOT / "elements" / element
-    text = path.read_text()
-    commit = re.search(r"^  ref: (?:\S+-g)?([0-9a-f]{40})$", text, re.MULTILINE)
-    if not commit:
-        raise ValueError(f"{element}: cannot read the tracked commit")
-    for name in names:
-        wrap = run("curl", "-fsSL", f"https://raw.githubusercontent.com/{repo}/{commit[1]}"
-                   f"/subprojects/{name}.wrap", capture=True)
-        revision = re.search(r"^revision = ([0-9a-f]{40})$", wrap, re.MULTILINE)
-        if not revision:
-            raise ValueError(f"{element}: {name}.wrap pins no commit revision")
-        text, count = re.subn(rf"(\n  ref: )[0-9a-f]{{40}}(\n  directory: subprojects/{name}\n)",
-                              lambda m: f"{m[1]}{revision[1]}{m[2]}", text)
-        if count != 1:
-            raise ValueError(f"{element}: expected one source staged at subprojects/{name}")
-    path.write_text(text)
 
 
 PATCHED = re.compile(r"^\s*- kind:\s*(patch|patch_queue)\s*$", re.MULTILINE)
@@ -377,7 +243,7 @@ def check_patches(element: str) -> None:
 @contextmanager
 def rollback_on_failure(paths: list[Path]):
     """Restore pre-invocation contents (including local edits), not Git HEAD."""
-    with tempfile.TemporaryDirectory(prefix="dakota-source-update-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="mercury-source-update-") as tmp:
         backups = []
         for index, path in enumerate(paths):
             backup = Path(tmp) / str(index)
@@ -463,8 +329,6 @@ def gnome_shell_version() -> str:
 
 def latest_release(element: str, release: Release, current: str) -> tuple[str, str]:
     """Return the newest release tag (and asset name, when the release names one)."""
-    if element == "bluefin/tailscale.bst":
-        return tailscale_release_tag(run("curl", "-fsSL", TAILSCALE_FEED, capture=True)), ""
     if release.feed:
         feed = release.feed.format(shell=gnome_shell_version()) if "{shell}" in release.feed else release.feed
         body = run("curl", "-fsSL", feed, capture=True)
@@ -495,20 +359,6 @@ def release_links(release: Release, old: str, tag: str) -> str:
         old_tag = ("v" if tag.startswith("v") else "") + old.removeprefix("v")
         links += f" · [compare](https://github.com/{release.repo}/compare/{old_tag}...{tag})"
     return links
-
-
-def tailscale_release_tag(payload: str) -> str:
-    """Use the published Linux archive, not a potentially platform-only Git tag."""
-    feed = json.loads(payload)
-    tarballs = feed.get("Tarballs") if isinstance(feed, dict) else None
-    filename = tarballs.get("amd64") if isinstance(tarballs, dict) else None
-    match = (re.fullmatch(r"tailscale_([0-9]+\.[0-9]+\.[0-9]+)_amd64\.tgz", filename)
-             if isinstance(filename, str) else None)
-    if not match:
-        raise ValueError("Tailscale package feed has no valid Tarballs.amd64 archive")
-    # Strict filename validation ensures rewrite_release reconstructs precisely
-    # this asset on the existing package host, never a feed-supplied URL/host.
-    return f"v{match[1]}"
 
 
 def update_release(element: str, out: Path | None) -> None:
@@ -554,22 +404,6 @@ def update_release(element: str, out: Path | None) -> None:
             "--note", release.note, *files)
 
 
-def sync_ogc_localversion(text: str) -> str:
-    """Derive the module-release suffix from the tag, including next's RC tags."""
-    refs = re.findall(r"^  ref: (\S+)$", text, re.MULTILINE)
-    match = (re.fullmatch(r"v[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-rc[0-9]+)?"
-                         r"(-ogc[0-9]+)(?:-[0-9]+-g[0-9a-f]{40})?", refs[0])
-             if len(refs) == 1 else None)
-    if not match:
-        raise ValueError("Cannot derive ogc-localversion from the tracked OGC release tag")
-    updated, count = re.subn(r"^  ogc-localversion:.*$",
-                            lambda _: f"  ogc-localversion: '{match[1]}'", text,
-                            flags=re.MULTILINE)
-    if count != 1:
-        raise ValueError("Expected exactly one ogc-localversion variable")
-    return updated
-
-
 def gbm_file(sha: str, path: str) -> str:
     quoted = path.replace("/", "%2F")
     url = ("https://gitlab.gnome.org/api/v4/projects/GNOME%2Fgnome-build-meta/"
@@ -601,21 +435,6 @@ def fdsdk_file(ref: str, path: str) -> str:
     return run("curl", "-fsSL", url, capture=True)
 
 
-def sync_vte(upstream: str) -> None:
-    """Rebuild exactly gnome-build-meta's VTE release (see bluefin/vte.bst)."""
-    source = re.search(r"^- kind: tar\n  url: (gnome_downloads:vte/[0-9.]+/vte-[0-9.]+\.tar\.xz)\n"
-                       r"  ref: ([0-9a-f]{64})$", upstream, re.MULTILINE)
-    if not source:
-        raise ValueError("Could not read the VTE release from GNOME Build Meta")
-    path = ROOT / "elements/bluefin/vte.bst"
-    text, count = re.subn(r"^(  url: )gnome_downloads:vte/\S+\n(  ref: )[0-9a-f]{64}$",
-                          lambda m: f"{m[1]}{source[1]}\n{m[2]}{source[2]}",
-                          path.read_text(), count=1, flags=re.MULTILINE)
-    if count != 1:
-        raise ValueError("Missing the VTE tar source in bluefin/vte.bst")
-    path.write_text(text)
-
-
 def sync_alsa_utils(upstream: str) -> None:
     """Build the alsa-utils release matching freedesktop-sdk's alsa-lib."""
     lib = re.search(r"^  ref: v([0-9]+(?:\.[0-9]+){2,3})-[0-9]+-g[0-9a-f]{40}$", upstream, re.MULTILINE)
@@ -629,12 +448,12 @@ def sync_alsa_utils(upstream: str) -> None:
                   and version_key(v) <= version_key(lib[1])]
     if not candidates:
         raise ValueError(f"No alsa-utils release for alsa-lib {lib[1]}")
-    path = ROOT / "elements/bluefin/alsa-utils.bst"
+    path = ROOT / "elements/mercury/alsa-utils.bst"
     original = path.read_text()
     updated, _ = rewrite_release(original, release, max(candidates, key=version_key))
     if updated != original:
         path.write_text(updated)
-        track("bluefin/alsa-utils.bst")
+        track("mercury/alsa-utils.bst")
 
 
 ALSA_UTILS = Release(
@@ -665,10 +484,9 @@ def update_core() -> None:
     if path.read_text() != text:
         print("REVIEW: FDSDK changed. Compare core/linux-fdsdk.bst, patches/linux, "
               "files/linux/config-utils.sh and files/linux/fdsdk-config.sh with the new SDK; "
-              "preserve Dakota's local kernel configuration.")
+              "preserve Mercury's local kernel configuration.")
     path.write_text(text)
     sync_plugins_community(gbm_file(sha[1], "elements/plugins/buildstream-plugins-community.bst"))
-    sync_vte(gbm_file(sha[1], "elements/core-deps/vte.bst"))
     sync_alsa_utils(fdsdk_file(source[1], "elements/components/alsa-lib.bst"))
     run("just", "patch-sync")
     run("just", "patch-drift-check")
@@ -689,18 +507,13 @@ def update(element: str, out: Path | None) -> None:
             update_release(element, out)
         else:
             track(element)
-            if element in WRAPS:
-                sync_wraps(element)
-            if element == "core/linux-ogc.bst":
-                path = paths[0]
-                path.write_text(sync_ogc_localversion(path.read_text()))
             # Tracking a git ref does not apply subsequent patch sources, and
             # neither does fetching: only staging runs them. Stage before
             # accepting the pin, inside the rollback boundary.
             check_patches(element)
             if element in {item[0] for item in KERNELS}:
                 print(f"REVIEW: {element}: patches apply; build the kernel "
-                      "and corresponding NVIDIA drivers before shipping.")
+                      "before shipping.")
             if out is not None:
                 item = next(item for item in matrix()["include"] if item["element"] == element)
                 run(sys.executable, ".github/scripts/track_bundle.py", "record-element",

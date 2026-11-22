@@ -9,20 +9,22 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts import ownership_metadata as metadata
+from scripts.test_ownership_metadata import unlabeled_snapshot
 from scripts.test_ownership_oci import entry, layout_at
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE_OWNER = {"component": "bluefin/tool.bst", "producer": "bluefin:bluefin/tool.bst", "interval": "weekly"}
-BOOT_OWNER = {"component": "bluefin/boot.bst", "producer": "bluefin:bluefin/boot.bst", "interval": "monthly"}
+BASE_OWNER = {"component": "mercury/tool.bst", "producer": "mercury:mercury/tool.bst", "interval": "weekly"}
+BOOT_OWNER = {"component": "mercury/boot.bst", "producer": "mercury:mercury/boot.bst", "interval": "monthly"}
 PREFIX = ["/usr/lib/modules"]
 
 
 def base_layer():
     return [entry("usr", "directory"), entry("usr/bin", "directory"), entry("usr/bin/tool"),
             entry("usr/bin/link", "symlink", target="tool", mode=0o777), entry("usr/lib", "directory"),
-            entry("usr/lib/os-release", data=b"VERSION_ID=0\nNAME=Dakota\n")]
+            entry("usr/lib/os-release", data=b"VERSION_ID=0\nNAME=Mercury\n")]
 
 
 def boot_layer():
@@ -44,9 +46,9 @@ class FinalizeOverlayTests(unittest.TestCase):
         self.base_layout = layout_at(self.tmp / "base", [base_layer()])
         tree, digest = metadata.oci_snapshot(self.base_layout)
         owners = {path: BASE_OWNER for path, record in tree.items() if record["type"] in ("file", "symlink")}
-        payload = metadata._final_payload(tree, owners, "bluefin/oci-bluefin/fixture",
+        payload = metadata._final_payload(tree, owners, "mercury/oci-mercury/fixture",
                                           "0" * 64, "amd64", "default", digest)
-        payload["os_release_lines"] = ["VERSION_ID=0\n", "NAME=Dakota\n"]
+        payload["os_release_lines"] = ["VERSION_ID=0\n", "NAME=Mercury\n"]
         self.base_sidecar = self.tmp / "base.json"
         metadata._write_json(self.base_sidecar, payload)
         self.output = self.tmp / "final.json"
@@ -58,7 +60,7 @@ class FinalizeOverlayTests(unittest.TestCase):
         kinds = structure(entries)
         path = self.tmp / name
         path.write_text(json.dumps({
-            "schema": 3, "layer_artifact": "bluefin/oci-layers-boot/fixture", "structure": kinds,
+            "schema": 3, "layer_artifact": "mercury/oci-layers-boot/fixture", "structure": kinds,
             "entries": [{"path": "/" + p, **BOOT_OWNER} for p, k in kinds.items() if k != "directory"],
         }))
         return path
@@ -82,7 +84,7 @@ class FinalizeOverlayTests(unittest.TestCase):
         self.assertEqual(final["snapshot"], metadata.oci_snapshot(layout)[0])
         self.assertEqual(final["oci_manifest_digest"], metadata.oci_snapshot(layout)[1])
         self.assertEqual(final["binding"], "oci-layout")
-        self.assertEqual(final["os_release_lines"], ["VERSION_ID=0\n", "NAME=Dakota\n"])
+        self.assertEqual(final["os_release_lines"], ["VERSION_ID=0\n", "NAME=Mercury\n"])
         self.assertEqual(final["overlay"]["allow_prefixes"], PREFIX)
 
     def test_merged_sidecar_validates_the_extracted_image(self):
@@ -98,8 +100,11 @@ class FinalizeOverlayTests(unittest.TestCase):
                     if member.issym():
                         os.utime(root / member.name, ns=(member.mtime * 10**9,) * 2, follow_symlinks=False)
         manifest_tsv = self.tmp / "manifest.tsv"
-        metadata.validate_exported(root, self.output, "amd64", "default", manifest_tsv)
-        self.assertIn("/usr/lib/modules/6.1/vmlinuz\tbluefin/boot.bst\tmonthly\n", manifest_tsv.read_text())
+        # The sidecar snapshot is tar-recorded; strip the host's SELinux
+        # labels from the extracted side (see unlabeled_snapshot).
+        with mock.patch.object(metadata, "snapshot", unlabeled_snapshot):
+            metadata.validate_exported(root, self.output, "amd64", "default", manifest_tsv)
+        self.assertIn("/usr/lib/modules/6.1/vmlinuz\tmercury/boot.bst\tmonthly\n", manifest_tsv.read_text())
 
     def test_rejects_overlay_path_outside_prefixes(self):
         overlay = boot_layer() + [entry("usr/bin", "directory"), entry("usr/bin/tool", data=b"evil")]
@@ -138,7 +143,7 @@ class FinalizeOverlayTests(unittest.TestCase):
 
     def test_rejects_variant_mismatch(self):
         with self.assertRaisesRegex(ValueError, "variant"):
-            self.run_merge(variant="nvidia")
+            self.run_merge(variant="debug")
 
     def test_rejects_hardlink_into_base_content(self):
         overlay = boot_layer() + [entry("usr/lib/modules/6.1/alias", "link", target="usr/bin/tool")]

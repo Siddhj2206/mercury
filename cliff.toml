@@ -1,15 +1,9 @@
-# git-cliff configuration for projectbluefin/dakota
+# git-cliff configuration for Siddhj2206/mercury
 #
 # Generates structured changelogs from Conventional Commits.
-# Consumed by the release workflow (reusable-release.yml).
 #
-# Usage in release.yml:
-#   - name: Install git-cliff
-#     uses: taiki-e/install-action@<sha>
-#     with:
-#       tool: git-cliff
-#   - name: Generate changelog
-#     run: git cliff --latest --strip header > CHANGELOG.md
+# Usage:
+#   git cliff --latest --strip header > CHANGELOG.md
 
 [changelog]
 header = ""

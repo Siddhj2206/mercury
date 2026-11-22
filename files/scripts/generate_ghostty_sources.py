@@ -5,7 +5,7 @@ Ghostty builds offline, so every package in its dependency graph must be a
 BuildStream source. Upstream publishes that graph for packagers as
 build.zig.zon.json in the release tarball; this pins each archive by sha256 and
 rewrites the release URL, the generated source block, and the version string.
-Zig breaks compatibility between minor releases, so bluefin/zig.bst follows the
+Zig breaks compatibility between minor releases, so mercury/zig.bst follows the
 release's minimum_zig_version: the newest patch release of that minor series.
 
 Usage: generate_ghostty_sources.py <version> [element]
@@ -23,8 +23,8 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-ELEMENT = ROOT / "elements/bluefin/ghostty.bst"
-ZIG_ELEMENT = ROOT / "elements/bluefin/zig.bst"
+ELEMENT = ROOT / "elements/mercury/ghostty.bst"
+ZIG_ELEMENT = ROOT / "elements/mercury/zig.bst"
 ALIASES = ROOT / "include/aliases.yml"
 RELEASE_URL = "https://release.files.ghostty.org/{version}/ghostty-{version}.tar.gz"
 ZIG_INDEX = "https://ziglang.org/download/index.json"
@@ -69,7 +69,7 @@ def archive_url(url: str) -> str:
 
 def download(url: str, out=None) -> str:
     """Stream url (optionally into out) and return its sha256."""
-    request = urllib.request.Request(url, headers={"User-Agent": "dakota-source-generator"})
+    request = urllib.request.Request(url, headers={"User-Agent": "mercury-source-generator"})
     digest = hashlib.sha256()
     with urllib.request.urlopen(request, timeout=120) as response:
         while chunk := response.read(1 << 20):
@@ -114,7 +114,7 @@ def pin_zig(text: str, version: str, sha: str) -> str:
     text, count = ZIG_SOURCE.subn(
         lambda m: f"{m[1]}{version}{m[3]}{version}{m[4]}{sha}", text)
     if count != 1:
-        raise ValueError("Expected exactly one x86_64 Zig tarball in bluefin/zig.bst")
+        raise ValueError("Expected exactly one x86_64 Zig tarball in mercury/zig.bst")
     return text
 
 

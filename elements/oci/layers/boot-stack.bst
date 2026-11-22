@@ -18,4 +18,4 @@ depends:
 - secure_boot_signing == true:
     depends:
       (>):
-      - bluefin/secure-boot.bst
+      - mercury/secure-boot.bst

@@ -20,6 +20,6 @@ config:
       rm -rf usr/share/doc
       rm -rf usr/share/man
       oci-builder \
-        --name ghcr.io/projectbluefin/python-micro \
+        --name ghcr.io/siddhj2206/python-micro \
         --entrypoint /usr/bin/python3 \
         . /oci-image

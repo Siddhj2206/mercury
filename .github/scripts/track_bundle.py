@@ -385,7 +385,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("compose", help="commit records and open or refresh the PR")
     p.add_argument("--tracked", type=Path, required=True)
     p.add_argument("--branch", required=True)
-    p.add_argument("--base", default="testing")
+    p.add_argument("--base", default="main")
     p.add_argument("--skip", default="", help="space-separated slugs to hold out")
     p.add_argument("--run-url", required=True)
     p.add_argument("--pinned", type=Path,

@@ -2,13 +2,13 @@ name: Validate
 
 on:
   pull_request:
-    branches: [testing, next, main]
-    # "edited" fires when a PR's base branch changes. Without it, a PR
-    # opened against one branch and retargeted here merges without ever
-    # re-running validation against the new base (see #1386).
+    branches: [main]
+    # "edited" fires when a PR's base branch changes; re-validate on retarget.
     types: [opened, synchronize, reopened, edited]
   merge_group:
-    branches: [testing, next, main]
+    branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -29,17 +29,13 @@ jobs:
         with:
           tool: just
 
-      - name: Validate publish workflow and composite actions
+      - name: Validate workflow and script checks
         run: just check-publish-workflow
 
-      - name: Restore BST cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ~/.cache/buildstream
-          key: bst-show-${{ github.base_ref || github.ref_name }}-${{ hashFiles('elements/gnome-build-meta.bst', 'elements/freedesktop-sdk.bst', 'Justfile') }}
-          restore-keys: |
-            bst-show-${{ github.base_ref || github.ref_name }}-
-            bst-show-
+      # No actions/cache for the BST CAS: it cannot hold the artifact cache
+      # (10 GB limit vs ~100 GB) and `bst show` only needs junctions, which
+      # re-fetch in seconds. A real CAS remote is the answer — see
+      # docs/ci-research.md.
 
       - name: Check for dangling submodules
         run: |
@@ -52,8 +48,5 @@ jobs:
       - name: Check freedesktop-sdk patch drift
         run: just patch-drift-check
 
-      - name: Validate BST element graph (default)
-        run: just bst show --deps all oci/bluefin.bst
-
-      - name: Validate BST element graph (nvidia)
-        run: just bst show --deps all oci/bluefin-nvidia.bst
+      - name: Validate BST element graph
+        run: just bst show --deps all oci/mercury.bst

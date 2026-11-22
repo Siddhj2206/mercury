@@ -48,7 +48,7 @@ def base_layout(root, layers):
                 "config": blob(json.dumps(config).encode(), CONFIG)}
     descriptor = blob(json.dumps(manifest).encode(), MANIFEST)
     descriptor["platform"] = {"os": "linux", "architecture": "amd64"}
-    descriptor["annotations"] = {"org.opencontainers.image.ref.name": "ghcr.io/projectbluefin/dakota:latest"}
+    descriptor["annotations"] = {"org.opencontainers.image.ref.name": "ghcr.io/siddhj2206/mercury:latest"}
     (root / "index.json").write_text(json.dumps({"schemaVersion": 2, "manifests": [descriptor]}))
     (root / "oci-layout").write_text('{"imageLayoutVersion":"1.0.0"}')
     return root

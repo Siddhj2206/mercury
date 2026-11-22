@@ -69,10 +69,9 @@ def cleanup_resources(state, containers, output, cache, refs, fingerprints):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("default_ref")
-    parser.add_argument("nvidia_ref")
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    refs = [args.default_ref, args.nvidia_ref]
+    refs = [args.default_ref]
     for ref in refs:
         if not re.fullmatch(r"[\w.-]+/[\w.-]+/[0-9a-f]{64}", ref):
             parser.error("use exact project/element/64-hex-key artifact references")
@@ -85,7 +84,7 @@ def main():
         parser.error("at least 80 GiB free on the home filesystem is required")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    state = Path(tempfile.mkdtemp(prefix="dakota-cold-cache-", dir=Path.home()))
+    state = Path(tempfile.mkdtemp(prefix="mercury-cold-cache-", dir=Path.home()))
     containers = []
 
     def run(command, log=None):
@@ -179,24 +178,19 @@ bst --no-interactive --config /state/receiver.conf artifact pull --deps none "$@
 bst --no-interactive --config /state/receiver.conf artifact show "$@"
 cd /work
 export BST_RUNNER=/work/bst-checkout
-for variant in default nvidia; do
-    export COLD_ARTIFACT="$1"
-    export COLD_ELEMENT=oci/bluefin.bst
-    [ "$variant" != nvidia ] || export COLD_ELEMENT=oci/bluefin-nvidia.bst
-    shift
-    echo "==> COLD ARTIFACT $variant $COLD_ARTIFACT"
-    BUILD_IMAGE_NAME=ownership-cold just export "$variant"
-    name=ownership-cold
-    [ "$variant" != nvidia ] || name=ownership-cold-nvidia
-    id=$(podman image inspect --format '{{.Id}}' "$name")
-    cp ".build-ownership/$id/ownership-source.json" "/evidence/$variant-source.json"
-    cp ".build-ownership/$id/ownership-final.json" "/evidence/$variant-final.json"
-    just chunkify "localhost/$name:latest"
-    podman image inspect "$name" > "/evidence/$variant-chunked.json"
-    podman rmi "$name" "$id"
-    rm -rf .build-ownership
-    echo "PASS: $variant cold artifact exported and chunkified"
-done
+export COLD_ARTIFACT="$1"
+export COLD_ELEMENT=oci/mercury.bst
+echo "==> COLD ARTIFACT default $COLD_ARTIFACT"
+BUILD_IMAGE_NAME=ownership-cold just export default
+name=ownership-cold
+id=$(podman image inspect --format '{{.Id}}' "$name")
+cp ".build-ownership/$id/ownership-source.json" "/evidence/default-source.json"
+cp ".build-ownership/$id/ownership-final.json" "/evidence/default-final.json"
+just chunkify "localhost/$name:latest"
+podman image inspect "$name" > "/evidence/default-chunked.json"
+podman rmi "$name" "$id"
+rm -rf .build-ownership
+echo "PASS: default cold artifact exported and chunkified"
 ''')
         run(["podman", "run", "--rm", "--pull=never", "--privileged", "--init",
              "--network", f"container:{server}", "--entrypoint", "/bin/bash",
@@ -222,7 +216,7 @@ done
     (output / "result.json").write_text(json.dumps({"status": "passed", "artifact_refs": refs,
         "source_reference_fingerprints_unchanged": True, "source_cache_read_only": True,
         "receiver_source_cache_mounted": False, "builds_run": 0,
-        "variants_exported_and_chunkified": ["default", "nvidia"]}, indent=2) + "\n")
+        "variants_exported_and_chunkified": ["default"]}, indent=2) + "\n")
     print(f"PASS: cold artifact pull/export/chunkify; evidence: {output}")
 
 

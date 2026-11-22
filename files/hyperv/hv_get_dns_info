@@ -1,5 +1,5 @@
 #!/bin/sh
-# Dakota replacement for tools/hv/hv_get_dns_info.sh.
+# Mercury replacement for tools/hv/hv_get_dns_info.sh.
 #
 # hv_kvp_daemon calls this with an interface name and expects one IPv4
 # nameserver per line. /etc/resolv.conf only names the systemd-resolved stub,

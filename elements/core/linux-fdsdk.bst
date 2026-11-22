@@ -1,16 +1,16 @@
-# freedesktop-sdk stable kernel for non-gaming Dakota variants.
+# freedesktop-sdk stable kernel for Mercury images.
 #
 # This reproduces the x86_64/aarch64 recipe of the linux.bst element at
-# Dakota's pinned freedesktop-sdk 26.08 ref (elements/components/linux.bst
+# Mercury's pinned freedesktop-sdk 26.08 ref (elements/components/linux.bst
 # plus elements/include/linux.yml, with build-depends junction-prefixed).
 # The vendored files/linux/ scripts and patches/linux/ queue are verbatim
 # copies from that ref; re-sync all of them at every fdsdk bump.
 #
 # As of 26.08, upstream builds ATH12K, strips modules (INSTALL_MOD_STRIP=1),
 # and splits vmlinux/System.map to the devel domain itself, so those former
-# Dakota deltas are gone. One Dakota delta remains:
+# Mercury deltas are gone. One Mercury delta remains:
 #   CRYPTO_ZSTD forced =y: the zswap.compressor=zstd karg
-#   (bluefin/zswap-config.bst, all variants) needs the compressor
+#   (mercury/zswap-config.bst, all variants) needs the compressor
 #   built in, not =m.
 #
 # Exit condition: only drop this element in favor of components/linux.bst
@@ -80,7 +80,7 @@ config:
     . ./fdsdk-config.sh "%{arch}"
 
   - |
-    # Dakota deltas go through config-utils.sh enable/module so they land in
+    # Mercury deltas go through config-utils.sh enable/module so they land in
     # expected-configs and the post-olddefconfig gate verifies they survived.
     . ./config-utils.sh
 
@@ -90,7 +90,7 @@ config:
     # Hardware-enablement deltas from the Fedora config audit (VM guests,
     # homelab HBAs, laptop camera/audio/input completion); shared with the
     # testing-stream kernels.
-    . ./dakota-config.sh
+    . ./mercury-config.sh
 
   - |
     # Drop expectations for options this newer stable tree no longer offers.
@@ -206,4 +206,4 @@ sources:
 - kind: local
   path: files/linux/fdsdk-config.sh
 - kind: local
-  path: files/linux/dakota-config.sh
+  path: files/linux/mercury-config.sh

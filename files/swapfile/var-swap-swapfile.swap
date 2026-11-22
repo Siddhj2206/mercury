@@ -3,8 +3,8 @@
 # never enable this on already-installed machines.
 [Unit]
 Description=Swapfile (zswap backing store)
-Requires=bluefin-swapfile-init.service
-After=bluefin-swapfile-init.service
+Requires=mercury-swapfile-init.service
+After=mercury-swapfile-init.service
 # If init skipped creation (disk too small), skip activation cleanly.
 ConditionPathExists=/var/swap/swapfile
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Dakota replacement for tools/hv/hv_get_dhcp_info.sh.
+# Mercury replacement for tools/hv/hv_get_dhcp_info.sh.
 #
 # hv_kvp_daemon calls this with an interface name and expects "Enabled" or
 # "Disabled". Read the IPv4 method of the interface's active NetworkManager

@@ -1,8 +1,6 @@
 name: Track BuildStream Sources
 
 on:
-  repository_dispatch:
-    types: [common-updated]
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -22,7 +20,7 @@ permissions: read-all
 # Tracking resolves refs and stages patched sources to check their patches,
 # but never builds or publishes. Keep it independent of build concurrency.
 concurrency:
-  group: dakota-source-track
+  group: mercury-source-track
   cancel-in-progress: false
 
 env:
@@ -143,18 +141,15 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Get mergeraptor token
-        id: app-token
-        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
-        with:
-          app-id: ${{ secrets.MERGERAPTOR_APP_ID }}
-          private-key: ${{ secrets.MERGERAPTOR_PRIVATE_KEY }}
-
+      # OWNER NOTE: bundle PRs are opened with GITHUB_TOKEN, which does not
+      # re-trigger workflows on the PR. Either close/reopen the PR to run
+      # checks, or swap in a GitHub App token (actions/create-github-app-token)
+      # like upstream dakota did.
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download tracked updates
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -170,7 +165,7 @@ jobs:
 
       - name: Compose bundle branch and PR
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Space-separated element slugs (file basename without .bst) to hold
           # out of the bundle, e.g. while an upstream regression is fixed.
           SKIP: ${{ vars.TRACK_BUNDLE_SKIP }}
@@ -178,7 +173,7 @@ jobs:
         run: |
           python3 scripts/update_sources.py --pinned > "$RUNNER_TEMP/pinned.json"
           python3 .github/scripts/track_bundle.py compose \
-            --tracked "$RUNNER_TEMP/tracked" --branch auto/track-bundle --base testing \
+            --tracked "$RUNNER_TEMP/tracked" --branch auto/track-bundle --base main \
             --skip "$SKIP" --run-url "$RUN_URL" --pinned "$RUNNER_TEMP/pinned.json"
 
   # ── Atomic co-tracking of core junctions ──────────────────────────────────
@@ -194,18 +189,11 @@ jobs:
       github.event.inputs.group == 'core-junctions' ||
       github.event_name == 'schedule'
     steps:
-      - name: Get mergeraptor token
-        id: app-token
-        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
-        with:
-          app-id: ${{ secrets.MERGERAPTOR_APP_ID }}
-          private-key: ${{ secrets.MERGERAPTOR_PRIVATE_KEY }}
-
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Just
         uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2
@@ -220,15 +208,15 @@ jobs:
 
       - name: Create or update PR
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git checkout -B auto/track-core-junctions origin/testing
+          git checkout -B auto/track-core-junctions origin/main
           # patch-sync adds and removes files, so stage first and test the index.
           git add elements/gnome-build-meta.bst elements/freedesktop-sdk.bst elements/plugins/buildstream-plugins-community.bst patches/freedesktop-sdk patches/freedesktop-sdk.manifest.json \
-            elements/bluefin/vte.bst elements/bluefin/alsa-utils.bst
+            elements/mercury/vte.bst elements/mercury/alsa-utils.bst
           git diff --cached --quiet && { echo "No junction updates"; exit 0; }
           git commit -m "chore(deps): update core junctions (gnome-build-meta + freedesktop-sdk)"
           git push --force-with-lease origin auto/track-core-junctions
@@ -239,9 +227,9 @@ jobs:
             echo "Existing PR: $PR_URL"
           else
             PR_URL=$(gh pr create \
-              --base testing \
+              --base main \
               --head auto/track-core-junctions \
               --title "chore(deps): update core junctions (gnome-build-meta + freedesktop-sdk)" \
-              --body "Updates \`gnome-build-meta.bst\`, derives the \`freedesktop-sdk.bst\`, \`plugins/buildstream-plugins-community.bst\`, \`bluefin/vte.bst\` and \`bluefin/alsa-utils.bst\` pins from it, and re-syncs \`patches/freedesktop-sdk\`. Manual review required — junction bumps can break downstream elements.")
+              --body "Updates \`gnome-build-meta.bst\`, derives the \`freedesktop-sdk.bst\`, \`plugins/buildstream-plugins-community.bst\`, \`mercury/vte.bst\` and \`mercury/alsa-utils.bst\` pins from it, and re-syncs \`patches/freedesktop-sdk\`. Manual review required — junction bumps can break downstream elements.")
             echo "PR: $PR_URL"
           fi

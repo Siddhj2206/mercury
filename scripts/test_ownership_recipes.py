@@ -140,10 +140,10 @@ elif name == "umount":
         return [json.loads(line) for line in (self.root / "calls").read_text().splitlines()]
 
     def test_runner_receives_arguments_without_wrapper_rewriting(self):
-        result = self.run_recipe("bst", "artifact", "checkout", "oci/bluefin.bst", "--directory", "/src/.build-out",
+        result = self.run_recipe("bst", "artifact", "checkout", "oci/mercury.bst", "--directory", "/src/.build-out",
                                  BST_RUNNER=str(self.bin / "bst-runner"))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.calls(), [["bst-runner", "artifact", "checkout", "oci/bluefin.bst",
+        self.assertEqual(self.calls(), [["bst-runner", "artifact", "checkout", "oci/mercury.bst",
                                         "--directory", "/src/.build-out"]])
 
     def test_partial_allocation_failure_cleans_every_acquired_resource(self):

@@ -1,5 +1,5 @@
 # Shared os-release / image-info.json generator; instantiating elements
-# set %{os-release-repo} (oci/os-release.bst, bluefin-nvidia/os-release.bst).
+# set %{os-release-repo} (oci/os-release.bst).
 # If an instantiating element declares its own build-depends, YAML
 # composition REPLACES this list (no merge) — carry sandbox-tools along.
 build-depends:
@@ -13,25 +13,25 @@ variables:
 
 environment:
   IMAGE_NAME: "%{os-release-repo}"
-  IMAGE_VENDOR: "projectbluefin"
-  IMAGE_REF: "ostree-image-signed:docker://ghcr.io/projectbluefin/%{os-release-repo}"
+  IMAGE_VENDOR: "siddhj2206"
+  IMAGE_REF: "ostree-image-signed:docker://ghcr.io/siddhj2206/%{os-release-repo}"
   IMAGE_FLAVOR: "main"
   # image-info.json only: the real tag is known at runtime, not build time
-  # (one digest is published as :testing and promoted to :stable), so
-  # ublue-booted-image-sync replaces it at boot. os-release carries no tag.
+  # (one digest is published as :testing and promoted to :stable). os-release
+  # carries no tag.
   IMAGE_TAG: "latest"
   VERSION_ID: "0"
   IMAGE_VERSION: "0"
 
-  IMAGE_PRETTY_NAME: "Bluefin"
-  VENDOR_NAME: "Project Bluefin"
-  VENDOR_URL: "https://projectbluefin.io"
-  HOME_URL: "https://projectbluefin.io"
-  DOCUMENTATION_URL: "https://docs.projectbluefin.io"
-  SUPPORT_URL: "https://github.com/projectbluefin/dakota/issues"
-  BUG_SUPPORT_URL: "https://github.com/projectbluefin/dakota/issues"
-  CODE_NAME: "Dakotaraptor"
-  ID: "bluefin-dakota"
+  IMAGE_PRETTY_NAME: "Mercury"
+  VENDOR_NAME: "siddhj2206"
+  VENDOR_URL: "https://github.com/siddhj2206/mercury"
+  HOME_URL: "https://github.com/siddhj2206/mercury"
+  DOCUMENTATION_URL: "https://github.com/siddhj2206/mercury"
+  SUPPORT_URL: "https://github.com/siddhj2206/mercury/issues"
+  BUG_SUPPORT_URL: "https://github.com/siddhj2206/mercury/issues"
+  CODE_NAME: "Mercury"
+  ID: "mercury"
 
 config:
   build-commands:
@@ -50,7 +50,7 @@ config:
       DOCUMENTATION_URL="${DOCUMENTATION_URL}"
       SUPPORT_URL="${SUPPORT_URL}"
       LOGO=img-logo-icon
-      DEFAULT_HOSTNAME="bluefin"
+      DEFAULT_HOSTNAME="mercury"
       IMAGE_ID="${IMAGE_NAME}"
       IMAGE_NAME="${IMAGE_NAME}"
       IMAGE_VENDOR="${IMAGE_VENDOR}"
@@ -63,20 +63,7 @@ config:
       ln -sf ../usr/lib/os-release %{install-root}%{sysconfdir}/os-release
 
     - |
-      case "${IMAGE_NAME}" in
-        *-nvidia-gaming) variant="Bluefin NVIDIA gaming" ;;
-        *-nvidia) variant="Bluefin NVIDIA" ;;
-        *-gaming) variant="Bluefin gaming" ;;
-        *) variant="" ;;
-      esac
-      if [ -n "${variant}" ]; then
-        variant_id="$(printf '%s' "${variant}" | tr 'A-Z ' 'a-z-')"
-        printf 'VARIANT="%s"\nVARIANT_ID=%s\n' "${variant}" "${variant_id}" \
-          >>"%{install-root}%{indep-libdir}/os-release"
-      fi
-
-    - |
-      # umotd and uwelcome take the first NAME="..." match as the OS name, so
+      # umotd takes the first NAME="..." match as the OS name, so
       # NAME= must precede PRETTY_NAME=, VENDOR_NAME= and IMAGE_NAME=. The
       # sandbox has only bash and coreutils, so no sed or grep here.
       first=""
@@ -99,10 +86,3 @@ config:
         "image-tag": "${IMAGE_TAG}"
       }
       EOF
-
-# Gaming marks the flavor; VARIANT lines are derived from the image name
-# above, which follows %{os-release-repo} set by the instantiating element.
-(?):
-- gaming == true:
-    environment:
-      IMAGE_FLAVOR: "gaming"

@@ -1,5 +1,5 @@
 # Private build-only compiler: Syncthing 2.1.5 needs Go >= 1.26.2, while
-# Dakota's current fdsdk provides Go 1.25. Do not replace the image toolchain.
+# Mercury's current fdsdk provides Go 1.25. Do not replace the image toolchain.
 # Remove when the integration junction supplies a sufficiently new Go.
 kind: manual
 

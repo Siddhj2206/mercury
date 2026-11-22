@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("ownership_metadata", ROOT / "scripts/ownership_metadata.py")
@@ -28,12 +29,28 @@ def finalize_fixture(root, basis_path, arch, variant, output):
     metadata._write_json(output, payload)
 
 
+def unlabeled_snapshot(root):
+    """snapshot() without host-assigned SELinux labels.
+
+    Tar extraction does not restore security.selinux and SELinux hosts label
+    fresh files on creation, so a tar-recorded snapshot can never carry it.
+    Strip it on the filesystem side so fixtures work on SELinux hosts.
+    """
+    tree = _snapshot(root)
+    for record in tree.values():
+        record.get("xattrs", {}).pop("security.selinux", None)
+    return tree
+
+
+_snapshot = metadata.snapshot
+
+
 class OwnershipMetadataTests(unittest.TestCase):
     def make_root(self, directory: Path) -> Path:
         root = directory / "root"
         (root / "usr/lib").mkdir(parents=True)
         (root / "usr/bin").mkdir()
-        (root / "usr/lib/os-release").write_text("VERSION_ID=0\nIMAGE_VERSION=0\nNAME=Dakota\n")
+        (root / "usr/lib/os-release").write_text("VERSION_ID=0\nIMAGE_VERSION=0\nNAME=Mercury\n")
         executable = root / "usr/bin/tool"
         executable.write_text("tool\n")
         executable.chmod(0o755)
@@ -48,13 +65,13 @@ class OwnershipMetadataTests(unittest.TestCase):
             if file_type in ("file", "symlink"):
                 entries.append({
                     "path": "/" + path,
-                    "component": "bluefin/tool.bst",
-                    "producer": "bluefin:bluefin/tool.bst",
+                    "component": "mercury/tool.bst",
+                    "producer": "mercury:mercury/tool.bst",
                     "interval": "weekly",
                 })
         destination.write_text(json.dumps({
             "schema": 3,
-            "layer_artifact": "bluefin/oci-layers-bluefin/fixture",
+            "layer_artifact": "mercury/oci-layers-mercury/fixture",
             "structure": structure,
             "entries": entries,
         }))
@@ -72,14 +89,14 @@ class OwnershipMetadataTests(unittest.TestCase):
             metadata.validate_exported(root, sidecar, "x86_64", "default", manifest)
             release = root / "usr/lib/os-release"
             release_mtime = os.stat(release).st_mtime_ns
-            release.write_text("VERSION_ID=20260101\nIMAGE_VERSION=20260101\nNAME=Dakota\n")
+            release.write_text("VERSION_ID=20260101\nIMAGE_VERSION=20260101\nNAME=Mercury\n")
             os.utime(release, ns=(release_mtime, release_mtime))
             with self.assertRaisesRegex(ValueError, "unexplained changes"):
                 metadata.validate_exported(root, sidecar, "x86_64", "default", manifest)
-            release.write_text("VERSION_ID=0\nIMAGE_VERSION=0\nNAME=Dakota\n")
+            release.write_text("VERSION_ID=0\nIMAGE_VERSION=0\nNAME=Mercury\n")
             os.utime(release, ns=(release_mtime, release_mtime))
             metadata.validate_exported(root, sidecar, "x86_64", "default", manifest)
-            self.assertIn("/usr/bin/tool\tbluefin/tool.bst\tweekly", manifest.read_text())
+            self.assertIn("/usr/bin/tool\tmercury/tool.bst\tweekly", manifest.read_text())
 
     def test_oci_finalization_and_immutable_image_rebinding(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -126,27 +143,30 @@ class OwnershipMetadataTests(unittest.TestCase):
             os.utime(exported / "usr/bin/link", ns=(link_mtime, link_mtime), follow_symlinks=False)
             release = exported / "usr/lib/os-release"
             release_mtime = os.stat(release).st_mtime_ns
-            release.write_text("VERSION_ID=20260101\nIMAGE_VERSION=20260101\nNAME=Dakota\n")
+            release.write_text("VERSION_ID=20260101\nIMAGE_VERSION=20260101\nNAME=Mercury\n")
             os.utime(release, ns=(release_mtime, release_mtime))
             rebound = tmp / "rebound.json"
             manifest_tsv = tmp / "manifest.tsv"
-            actual_release = metadata.snapshot(exported)["usr/lib/os-release"]
-            self.assertTrue(metadata._os_release_change(
-                source["snapshot"]["usr/lib/os-release"], actual_release
-            ), (source["snapshot"]["usr/lib/os-release"], actual_release))
-            image_id = "a" * 64
-            actual_tree = metadata.snapshot(exported)
-            differences = {
-                path: (source["snapshot"].get(path), actual_tree.get(path))
-                for path in sorted(set(source["snapshot"]) | set(actual_tree))
-                if source["snapshot"].get(path) != actual_tree.get(path)
-            }
-            self.assertEqual(set(differences), {"usr/lib/os-release"}, differences)
-            metadata.rebind_exported(exported, source_sidecar, image_id, "amd64", "default", rebound, manifest_tsv)
-            final = json.loads(rebound.read_text())
-            self.assertEqual(final["binding"], "final-image")
-            self.assertEqual(final["image_id"], image_id)
-            metadata.validate_exported(exported, rebound, "amd64", "default", manifest_tsv)
+            # The source snapshot is tar-recorded; strip the host's SELinux
+            # labels from the extracted side (see unlabeled_snapshot).
+            with mock.patch.object(metadata, "snapshot", unlabeled_snapshot):
+                actual_release = metadata.snapshot(exported)["usr/lib/os-release"]
+                self.assertTrue(metadata._os_release_change(
+                    source["snapshot"]["usr/lib/os-release"], actual_release
+                ), (source["snapshot"]["usr/lib/os-release"], actual_release))
+                image_id = "a" * 64
+                actual_tree = metadata.snapshot(exported)
+                differences = {
+                    path: (source["snapshot"].get(path), actual_tree.get(path))
+                    for path in sorted(set(source["snapshot"]) | set(actual_tree))
+                    if source["snapshot"].get(path) != actual_tree.get(path)
+                }
+                self.assertEqual(set(differences), {"usr/lib/os-release"}, differences)
+                metadata.rebind_exported(exported, source_sidecar, image_id, "amd64", "default", rebound, manifest_tsv)
+                final = json.loads(rebound.read_text())
+                self.assertEqual(final["binding"], "final-image")
+                self.assertEqual(final["image_id"], image_id)
+                metadata.validate_exported(exported, rebound, "amd64", "default", manifest_tsv)
             (exported / "usr/bin/tool").write_text("tampered")
             with self.assertRaisesRegex(ValueError, "unexplained changes"):
                 metadata.validate_exported(exported, rebound, None, None, None)
@@ -186,7 +206,7 @@ class OwnershipMetadataTests(unittest.TestCase):
             root = self.make_root(tmp)
             basis = self.basis(root, tmp / "basis.json")
             sidecar = tmp / "sidecar.json"
-            finalize_fixture(root, basis, "x86_64", "nvidia", sidecar)
+            finalize_fixture(root, basis, "x86_64", "debug", sidecar)
             with self.assertRaisesRegex(ValueError, "variant"):
                 metadata.validate_exported(root, sidecar, None, "default", None)
             final = json.loads(sidecar.read_text())
@@ -227,15 +247,15 @@ class OwnershipMetadataTests(unittest.TestCase):
             root = self.make_root(tmp)
             tool = root / "usr/bin/tool"
             try:
-                os.setxattr(tool, "user.dakota-test", b"one")
+                os.setxattr(tool, "user.mercury-test", b"one")
             except OSError as error:
                 self.skipTest(f"test filesystem does not support user xattrs: {error}")
             basis = self.basis(root, tmp / "basis.json")
             sidecar = tmp / "sidecar.json"
             finalize_fixture(root, basis, "x86_64", "default", sidecar)
             final = json.loads(sidecar.read_text())
-            self.assertIn("user.dakota-test", final["snapshot"]["usr/bin/tool"]["xattrs"])
-            os.setxattr(tool, "user.dakota-test", b"two")
+            self.assertIn("user.mercury-test", final["snapshot"]["usr/bin/tool"]["xattrs"])
+            os.setxattr(tool, "user.mercury-test", b"two")
             with self.assertRaisesRegex(ValueError, "unexplained changes"):
                 metadata.validate_exported(root, sidecar, None, None, None)
 

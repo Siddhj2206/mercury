@@ -1,4 +1,4 @@
-# Dakota Secure Boot certificate (files/boot-keys/modules/linux-module-cert.crt,
+# Mercury Secure Boot certificate (files/boot-keys/modules/linux-module-cert.crt,
 # created with `just secure-boot-keygen`), imported to /keys for the kernel
 # build. fdsdk-config.sh compiles it into the builtin trusted keyring and
 # only enables MODULE_SIG and the lockdown LSM when it is present. The same

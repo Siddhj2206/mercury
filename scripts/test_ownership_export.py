@@ -23,10 +23,10 @@ REPO = Path(__file__).resolve().parents[1]
 RUNNER = os.environ.get("BST2_IMAGE", "registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2")
 
 
-@unittest.skipUnless(os.environ.get("DAKOTA_OWNERSHIP_EXPORT_TEST") == "1", "explicit sudo/Podman fixture")
+@unittest.skipUnless(os.environ.get("MERCURY_OWNERSHIP_EXPORT_TEST") == "1", "explicit sudo/Podman fixture")
 class ExportPrivilegeTests(unittest.TestCase):
     def test_nonroot_export_hashes_private_files_and_returns_owned_outputs(self):
-        with tempfile.TemporaryDirectory(prefix="dakota-export-fixture-") as directory:
+        with tempfile.TemporaryDirectory(prefix="mercury-export-fixture-") as directory:
             tmp = Path(directory)
             layout = tmp / "layout"
             subprocess.run(["podman", "save", "--uncompressed", "--format", "oci-dir", "-o", str(layout),
@@ -66,13 +66,13 @@ class ExportPrivilegeTests(unittest.TestCase):
                       for name, record in tree.items() if record["type"] in ("file", "symlink")}
             payload = metadata._final_payload(tree, owners, "fixture/layer/key", "0" * 64, "amd64", "default", manifest_digest)
             payload["os_release_lines"] = ["NAME=Fixture\n", "VERSION_ID=0\n", "IMAGE_VERSION=0\n"]
-            metadata._write_json(layout / ".dakota/ownership-final.json", payload)
+            metadata._write_json(layout / ".mercury/ownership-final.json", payload)
 
             shutil.copy2(REPO / "Justfile", tmp / "Justfile")
             # Use the explicit runner seam; do not rewrite the Justfile wrapper.
             (tmp / "bst-checkout").write_text('''#!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" = 5 && "$1" = artifact && "$2" = checkout && "$3" = oci/bluefin.bst && "$4" = --directory && "$5" = /src/.build-out ]]
+[[ "$#" = 5 && "$1" = artifact && "$2" = checkout && "$3" = oci/mercury.bst && "$4" = --directory && "$5" = /src/.build-out ]]
 cp -a /work/layout /work/.build-out
 ''')
             (tmp / "bst-checkout").chmod(0o755)
@@ -133,22 +133,6 @@ print("PASS: old validator failed; real sudo export returned user-owned metadata
 PY
 sudo podman image umount "$ID"
 trap - EXIT
-# Exercise the real gaming-name selection, without building a gaming image.
-python3 - <<'PY'
-import json, pathlib
-path = pathlib.Path("layout/.dakota/ownership-final.json")
-state = json.loads(path.read_text())
-state["variant"] = "gaming"
-path.write_text(json.dumps(state))
-PY
-BUILD_GAMING=true BUILD_IMAGE_NAME=ownership-fixture just export default
-ID=$(sudo podman inspect --format "{{.Id}}" ownership-fixture-gaming)
-python3 - "$ID" <<'PY'
-import json, pathlib, sys
-state = json.loads((pathlib.Path(".build-ownership") / sys.argv[1] / "ownership-final.json").read_text())
-assert state["variant"] == "gaming"
-print("PASS: default gaming export uses the gaming sidecar identity")
-PY
 RUNNER
 ''')
             subprocess.run(["podman", "run", "--rm", "--pull=never", "--privileged", "--entrypoint", "/bin/bash",

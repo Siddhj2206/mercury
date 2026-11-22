@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+# Mercury's system helpers. Recipes live in /usr/share/mercury/justfile.
+exec just --justfile /usr/share/mercury/justfile --working-directory "${HOME}" "$@"

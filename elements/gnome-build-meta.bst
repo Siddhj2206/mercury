@@ -30,16 +30,16 @@ config:
     # Install dnsmasq under %{prefix}; see the element for the exit condition
     freedesktop-sdk-extra.bst:components/dnsmasq.bst: core/dnsmasq.bst
 
-    gnomeos-deps/plymouth-gnome-theme.bst: bluefin/plymouth-bluefin-theme.bst
+    gnomeos-deps/plymouth-gnome-theme.bst: mercury/plymouth-mercury-theme.bst
 
-    # Replace the element so the OCI image generates Bluefin's os-release file
+    # Replace the element so the OCI image generates Mercury's os-release file
     oci/integration/os-release.bst: oci/os-release.bst
 
     # Kernel modules: signed in publish builds, plain everywhere else
-    gnomeos/initramfs/signed-modules.bst: bluefin/unsigned-modules.bst
+    gnomeos/initramfs/signed-modules.bst: mercury/unsigned-modules.bst
     (?):
     - secure_boot_signing == true:
-        gnomeos/initramfs/signed-modules.bst: bluefin/signed-modules.bst
+        gnomeos/initramfs/signed-modules.bst: mercury/signed-modules.bst
 
     plugins/buildstream-plugins.bst: plugins/buildstream-plugins.bst
     plugins/buildstream-plugins-community.bst: plugins/buildstream-plugins-community.bst

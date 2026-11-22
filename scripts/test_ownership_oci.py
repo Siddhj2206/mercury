@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 from scripts import ownership_metadata as metadata
-from scripts.test_ownership_metadata import finalize_fixture
+from scripts.test_ownership_metadata import finalize_fixture, unlabeled_snapshot
 
 
 def entry(path, kind="file", data=b"data", target="", **attributes):
@@ -142,7 +142,7 @@ class OCISnapshotTests(unittest.TestCase):
             extracted.mkdir()
             with tarfile.open(layer) as archive:
                 archive.extractall(extracted, filter="data")
-            self.assertEqual(metadata.snapshot(extracted), expected)
+            self.assertEqual(unlabeled_snapshot(extracted), expected)
 
     def test_device_numbers_from_real_device_stat(self):
         # /dev/null is an existing real device: this test needs no mknod rights.

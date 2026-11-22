@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sign kernel modules and EFI binaries with the Dakota Secure Boot key.
+# Sign kernel modules and EFI binaries with the Mercury Secure Boot key.
 # Runs inside the signing elements, which stage files/boot-keys as their
 # source, so the key and certificate paths are relative to the build root.
 #
@@ -11,7 +11,7 @@ key=private/secure-boot.key
 cert=modules/linux-module-cert.crt
 
 if [ ! -s "$key" ]; then
-    echo "FATAL: no signing key at $key; CI writes it from DAKOTA_SECURE_BOOT_KEY" >&2
+    echo "FATAL: no signing key at $key; CI writes it from MERCURY_SECURE_BOOT_KEY" >&2
     exit 1
 fi
 if [ ! -s "$cert" ]; then

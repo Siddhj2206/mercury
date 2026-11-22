@@ -15,12 +15,12 @@ ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2"
 
 
-@unittest.skipUnless(os.environ.get("DAKOTA_OWNERSHIP_REAL_BST") == "1", "run via just test-ownership-buildstream")
+@unittest.skipUnless(os.environ.get("MERCURY_OWNERSHIP_REAL_BST") == "1", "run via just test-ownership-buildstream")
 class OwnershipBuildStreamTests(unittest.TestCase):
     def test_inherits_companion_pulled_with_remote_execution_storage(self):
         # All producers are command-free: exercise real lazy remote CAS reads
         # without requiring a worker, credentials, or the host BuildStream cache.
-        with tempfile.TemporaryDirectory(prefix="dakota-ownership-remote-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="mercury-ownership-remote-") as temporary:
             work = Path(temporary)
             for directory in ("plugins", "elements"):
                 (work / directory).mkdir(parents=True)
@@ -144,7 +144,7 @@ bst --no-interactive --config consumer.conf artifact checkout --no-integrate par
             print("PASS: remote-only companion inherited during a real parent build")
 
     def test_exact_integrated_layer_filtered_overlap_and_generated_owner(self):
-        with tempfile.TemporaryDirectory(prefix="dakota-ownership-bst-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="mercury-ownership-bst-") as temporary:
             work = Path(temporary)
             (work / "plugins").mkdir(); (work / "elements").mkdir(); (work / "cache").mkdir()
             for name in ("chunkah-ownership.py", "chunkah-ownership.yaml"):
@@ -227,7 +227,7 @@ config:
             self.assertEqual((layer / "usr/bin/shared").read_text(), "integrated-content")
             self.assertEqual(owners["/usr/bin/shared"]["component"], "b.bst")
             self.assertEqual(owners["/usr/bin/shared"]["producer"], "fixture:b.bst")
-            self.assertEqual(owners["/usr/bin/generated"]["component"], "dakota.integration")
+            self.assertEqual(owners["/usr/bin/generated"]["component"], "mercury.integration")
             self.assertEqual(owners["/usr/bin/remove"]["component"], "a.bst")
             self.assertNotIn("/usr/include/a.h", owners)
             self.assertEqual(basis["structure"]["usr/bin/shared"], "file")

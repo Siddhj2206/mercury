@@ -8,7 +8,7 @@ body:
       value: |
         ## Humans decide what gets built. Contributors build it.
 
-        This is not a ticket system — it is a conversation between you and the people building Dakota.
+        This is not a ticket system — it is a conversation between you and the maintainer of Mercury.
         A maintainer will read this, decide if it fits the project's direction, and approve it.
         Once approved, a contributor or agent can claim and ship it.
 
@@ -20,17 +20,16 @@ body:
         **Ask yourself before submitting:**
         - Can someone read this and know exactly what file to change? Remember LLMs are non-deterministic
         - Does "done" have a clear finish line — a command to run, a thing to see?
-        - Is this specific to Dakota, or would it be better filed upstream (GNOME, fdsdk, bootc)?
+        - Is this specific to Mercury, or would it be better filed upstream (GNOME, fdsdk, bootc)?
 
   - type: markdown
     attributes:
       value: |
         > **How this gets built:**
         > ```
-        > filed ──▶ needs-triage ──▶ triage accepted ──▶ done
+        > filed ──▶ triaged ──▶ done
         > ```
-        > Categorize with `/area <area>` or `/kind <kind>`.
-        > A triager or maintainer accepts it with `/triage accepted` when the spec is clear.
+        > The maintainer accepts it when the spec is clear.
 
   - type: textarea
     id: problem
@@ -59,10 +58,9 @@ body:
       description: "Where does this change live? Helps route it to the right epic and the right contributor."
       options:
         - "just recipes / ujust"
-        - "GNOME / desktop"
+        - "niri / DMS / desktop"
         - "bootc / image updates"
         - "install / ISO"
-        - "nvidia"
         - "flatpak / apps"
         - "brew / CLI tools"
         - "build system / BST"

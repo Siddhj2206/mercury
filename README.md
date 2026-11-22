@@ -1,57 +1,64 @@
-# Bluefin Dakota
-*Dakotaraptor steini*
+# Mercury
 
-[Bluefin](https://projectbluefin.io) built on [GNOME OS](https://os.gnome.org/), assembled entirely from source.
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/projectbluefin/dakota)
+A personal bootc OCI desktop: **niri** + **DankMaterialShell**, assembled
+entirely from source with [BuildStream 2](https://buildstream.build/) on a
+GNOME-OS-style base (gnome-build-meta + freedesktop-sdk).
 
+Mercury is a source-built fork (in the copy sense) of
+[projectbluefin/dakota](https://github.com/projectbluefin/dakota) — the
+Bluefin flagship re-imagined from source — itself descended from
+[neptuno](https://github.com/projectbluefin/neptuno)-era experiments.
+Credit for the build machinery, element layout, and patch discipline goes
+to the dakota maintainers.
 
-## Features
+## What it is
 
-Dakota is the flagship Bluefin desktop. Compared with previous images such as Bluefin Classic, it offers:
+- niri scrollable-tiling Wayland compositor with DankMaterialShell on top
+- System libraries and toolchain from freedesktop-sdk, desktop stack from
+  gnome-build-meta — no RPMs, no Containerfile, no dnf
+- x86-64-v3 optimized builds for modern CPUs
+- systemd-boot as the bootloader, with optional Secure Boot signing
+- Atomic updates via `bootc` — rebase, rollback, and pin from the registry
 
-- The latest GNOME desktop
-- System libraries and development tools from the Freedesktop SDK
-- Optimized x86-64-v3 builds for modern CPUs
-- systemd-boot as the bootloader, with full Secure Boot support
-- A dedicated gaming session with a gaming kernel from the Open Gaming Collective and Steam Gamescope
-- uutils as the default coreutils implementation
-- A graphical Control Center for system administration
+## Install / update
 
-## Built-in feedback loop
+```bash
+# On any bootc system:
+bootc switch ghcr.io/siddhj2206/mercury:latest
 
-Dakota doesn't eat tickets; it treats them as evidence. Every user running Dakota is part of a structured loop that feeds directly back into the issue tracker. When something breaks on your hardware, you have three commands:
+# Later:
+bootc upgrade
+```
 
-| Command | What it does |
-|---|---|
-| `ujust report` | Captures your system state, shows you the report, and files the issue for you. One command instead of a wall of "please attach logs." |
-| `ujust confirm <issue>` | Tells the team your hardware hits the same bug. Adds a hardware fingerprint to the issue — no duplicate filing. |
-| `ujust verify <issue>` | After a fix ships in a nightly, confirms it works on your machine. Closes the loop with evidence. |
-
-No telemetry. No phone-home. You review every report before it leaves your machine. The app publishes it with your own GitHub login and attaches it to the issue; a secret gist is used only as a fallback.
-
-## Image streams
-
-|        Tag |  Stream |                                                                                                    What it is |
-| ---------: | ------: | ------------------------------------------------------------------------------------------------------------: |
-|  `:stable` |  Stable |                                                     GNOME 51 — production. Weekly promotions from `:testing`. |
-| `:testing` |     Dev |                                              GNOME 51 — daily builds from the `testing` branch. Boot-check gated. |
-|    `:next` | Rolling |                                       Tracks gnome-build-meta `master` daily (currently disabled).            |
-
-## ISO Download
-
-[dakota-live-latest.iso](https://projectbluefin.dev/dakota-live-latest.iso) · [Checksum](https://projectbluefin.dev/dakota-live-latest.iso-CHECKSUM)
+Images publish as `:latest` plus an immutable `:VERSION.DATE` tag per build;
+a `:<commit-sha>` tag is kept for exact reproduction.
 
 ## Secure Boot
 
-- Run: `ujust enroll-secure-boot-key`
-- Check EAC readiness: `ujust check-anticheat`
+Secure Boot signing is wired through the BuildStream graph; enrolling the
+vendor key is opt-in on the installed system.
+
+## Verify
+
+Images are signed keylessly with cosign. See [SECURITY.md](SECURITY.md) for
+the exact `cosign verify` invocation.
+
+## Building
+
+```bash
+just build            # BST build of oci/mercury.bst
+just export default   # export the OCI image locally
+just boot-test        # boot smoke test in an ephemeral VM
+```
+
+Requires podman, just, ~100 GB disk. See [AGENTS.md](AGENTS.md) for the full
+workflow and [docs/build.md](docs/build.md) for details.
+
+## Scope
+
+Personal single-maintainer project. No aarch64, no NVIDIA variant, no
+gaming spin, no stable/next streams — one rolling `:latest`.
 
 ## Known gaps
 
-See the [open issues](https://github.com/projectbluefin/dakota/issues) for where things stand.
-
-## Contributing or building from source
-
-See [AGENTS.md](AGENTS.md) for the full contributor workflow, build instructions, and PR checklist.
-
-![Dakotaraptor](https://github.com/user-attachments/assets/ee92291d-a617-496e-abb6-9045a4c665ce)
+See the [open issues](https://github.com/Siddhj2206/mercury/issues).

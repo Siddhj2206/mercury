@@ -4,15 +4,10 @@ default:
     @just --list
 
 # ── Configuration ─────────────────────────────────────────────────────
-export image_name := env("BUILD_IMAGE_NAME", "dakota")
+export image_name := env("BUILD_IMAGE_NAME", "mercury")
 export image_tag := env("BUILD_IMAGE_TAG", "latest")
 
-# Gaming variant: adds the gaming/ stack and selects the OGC kernel.
-# Non-gaming variants use the freedesktop-sdk stable kernel. Applies to
-# every bst invocation here; exported podman refs get a -gaming suffix
-# so builds don't collide.
-export gaming := env("BUILD_GAMING", "false")
-# Secure Boot signing: CI (publish, PR images), with the key in files/boot-keys/private/.
+# Secure Boot signing, with the key in files/boot-keys/private/.
 export secure_boot_signing := env("BUILD_SECURE_BOOT_SIGNING", "false")
 export base_dir := env("BUILD_BASE_DIR", ".")
 export filesystem := env("BUILD_FILESYSTEM", "btrfs")
@@ -39,9 +34,9 @@ export OCI_IMAGE_VERSION := env("OCI_IMAGE_VERSION", "")
 # Set BST_FLAGS_OVERRIDE to replace all default/appended flags.
 # BST_RUNNER may name an executable alternate runner (also used by isolated tests).
 # It receives the recipe arguments unchanged and handles its own flags/environment.
-# Usage: just bst build oci/bluefin.bst
-#        just bst show oci/bluefin.bst
-#        BST_FLAGS="--config /src/buildstream-ci.conf" just bst build oci/bluefin.bst
+# Usage: just bst build oci/mercury.bst
+#        just bst show oci/mercury.bst
+#        BST_FLAGS="--config /src/buildstream-ci.conf" just bst build oci/mercury.bst
 [group('dev')]
 bst *ARGS:
     #!/usr/bin/env bash
@@ -56,9 +51,6 @@ bst *ARGS:
         EFFECTIVE_BST_FLAGS="${BST_FLAGS:-}"
         if [[ ! " ${EFFECTIVE_BST_FLAGS} " =~ [[:space:]]--no-interactive([[:space:]]|$) ]]; then
             EFFECTIVE_BST_FLAGS="${EFFECTIVE_BST_FLAGS} --no-interactive"
-        fi
-        if [[ ! " ${EFFECTIVE_BST_FLAGS} " =~ [[:space:]]-o[[:space:]]+gaming[[:space:]]+(true|false)([[:space:]]|$) ]]; then
-            EFFECTIVE_BST_FLAGS="${EFFECTIVE_BST_FLAGS} -o gaming {{gaming}}"
         fi
         if [[ ! " ${EFFECTIVE_BST_FLAGS} " =~ [[:space:]]-o[[:space:]]+secure_boot_signing[[:space:]]+(true|false)([[:space:]]|$) ]]; then
             EFFECTIVE_BST_FLAGS="${EFFECTIVE_BST_FLAGS} -o secure_boot_signing {{secure_boot_signing}}"
@@ -81,7 +73,7 @@ bst *ARGS:
         "{{bst2_image}}" \
         bash -c 'bst --colors "$@"' -- ${EFFECTIVE_BST_FLAGS} {{ARGS}}
 
-# Generate the Dakota Secure Boot key pair. The certificate is public and
+# Generate the Mercury Secure Boot key pair. The certificate is public and
 # committed; the kernel trusts it for modules, and users enroll it as a MOK.
 # The private key stays in the gitignored files/boot-keys/private/ and goes
 # into the publish CI secret. `just secure-boot-keygen test` makes a
@@ -97,8 +89,8 @@ secure-boot-keygen kind="release":
         exit 1
     fi
     case "{{kind}}" in
-        release) cn="Dakota Secure Boot Signing Key" ;;
-        test) cn="TEST Dakota Secure Boot Signing Key - do not ship" ;;
+        release) cn="Mercury Secure Boot Signing Key" ;;
+        test) cn="TEST Mercury Secure Boot Signing Key - do not ship" ;;
         *) echo "kind must be release or test" >&2; exit 1 ;;
     esac
     conf="$(mktemp)"
@@ -109,8 +101,8 @@ secure-boot-keygen kind="release":
     prompt = no
     x509_extensions = ext
     [dn]
-    O = Project Bluefin
-    OU = Dakota
+    O = siddhj2206
+    OU = Mercury
     CN = $cn
     [ext]
     basicConstraints = critical,CA:FALSE
@@ -123,7 +115,7 @@ secure-boot-keygen kind="release":
         -sha256 -nodes -days 36500 -keyout "$key" -out "$cert")
     chmod 644 "$cert"
     openssl x509 -in "$cert" -noout -subject -enddate -fingerprint -sha256
-    echo "Private key: $key (never commit; store it as the DAKOTA_SECURE_BOOT_KEY secret)"
+    echo "Private key: $key (never commit; store it as the MERCURY_SECURE_BOOT_KEY secret)"
 
 # Update CI-managed source pins locally; never commit, push, or open a PR.
 [group('dev')]
@@ -136,13 +128,9 @@ update-sources *FLAGS:
 # added to `validate` below runs on developer machines only.
 [group('dev')]
 check-publish-workflow:
-    python3 scripts/check_publish_workflow.py
-    python3 -m unittest scripts.test_check_publish_workflow
-    python3 -m unittest scripts.test_ownership_metadata scripts.test_ownership_oci scripts.test_ownership_overlay scripts.test_oci_append_layer scripts.test_compare_oci_layers scripts.test_ownership_recipes scripts.test_sync_next
-    python3 -m unittest scripts.test_image_variants scripts.test_track_bundle scripts.test_update_sources
-    python3 -m unittest scripts.test_desktop_defaults scripts.test_bst_wrapper
-    just test-devmode
-    just test-release
+    python3 -m unittest scripts.test_ownership_metadata scripts.test_ownership_oci scripts.test_ownership_overlay scripts.test_compare_oci_layers scripts.test_ownership_recipes
+    python3 -m unittest scripts.test_track_bundle scripts.test_update_sources
+    python3 -m unittest scripts.test_libvirt_packaging scripts.test_bst_wrapper
 
 # Local convenience wrapper. CI does NOT run this recipe; it runs
 # `check-publish-workflow` plus its own bst show steps. Do not register
@@ -150,34 +138,7 @@ check-publish-workflow:
 [group('dev')]
 validate:
     just check-publish-workflow
-    just test-render-card
-    just bst show --deps all oci/bluefin.bst
-    just bst show --deps all oci/bluefin-nvidia.bst
-
-# Usage: just release [--apply] [sha=<full-40-character-SHA>]
-# sha= is a recovery override and bypasses the successful-publish-run lookup.
-# Arguments are passed to Python as data, never interpolated into shell code.
-
-# Dispatch a stable preflight (default); --apply enables promotion.
-[group('release')]
-[positional-arguments]
-release *FLAGS:
-    python3 scripts/release.py dispatch "$@"
-
-# Offline release CLI and publish-readiness tests; no workflow dispatches.
-[group('test')]
-test-release:
-    python3 -m unittest scripts.test_release
-
-# Offline developer-tool tests; never changes host services, firewall, or apps.
-[group('test')]
-test-devmode:
-    python3 -m unittest discover -s scripts -p 'test_devmode*.py' -v
-
-# Unit tests for .github/scripts/render_card.py.
-[group('dev')]
-test-render-card:
-    python3 -m unittest scripts.test_render_card
+    just bst show --deps all oci/mercury.bst
 
 # Verify the local freedesktop-sdk patch queue matches its committed
 # manifest, offline. The manifest is written by `just patch-sync` (the only
@@ -282,44 +243,17 @@ patch-sync:
 # ── Build ─────────────────────────────────────────────────────────────
 # Build the OCI image and load it into podman.
 #
-# Variant selects which top-level OCI element to build:
-#   all     → both default and nvidia, sequentially  (refs below)
-#   default → oci/bluefin.bst                        ({{image_name}}:{{image_tag}})
-#   nvidia  → oci/bluefin-nvidia.bst                 ({{image_name}}-nvidia:{{image_tag}})
-#
-# Usage:
-#   just build              # builds BOTH variants (default + nvidia)
-#   just build default      # only default bluefin variant
-#   just build nvidia       # only nvidia variant
-#
-# When variant=all we run the per-variant build recursively so each one
-# also runs its own export, leaving two podman refs:
-# dakota:latest and dakota-nvidia:latest.
+# Usage: just build   # builds oci/mercury.bst and exports {{image_name}}:{{image_tag}}
 [group('build')]
-build variant="all":
+build:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    if [ "{{variant}}" = "all" ]; then
-        just build default
-        if [ "${BUILD_SKIP_NVIDIA:-}" != "1" ]; then
-            just build nvidia
-        else
-            echo "==> Skipping nvidia variant (BUILD_SKIP_NVIDIA=1)"
-        fi
-        exit 0
-    fi
-
-    case "{{variant}}" in
-        default) ELEMENT="oci/bluefin.bst" ;;
-        nvidia)  ELEMENT="oci/bluefin-nvidia.bst" ;;
-        *) echo "ERROR: unknown variant '{{variant}}' (expected: all | default | nvidia)" >&2; exit 1 ;;
-    esac
-
+    ELEMENT="oci/mercury.bst"
     echo "==> Building $ELEMENT with BuildStream (inside bst2 container)..."
     just bst build "$ELEMENT"
 
-    just export {{variant}}
+    just export
 
 # ── Export ─────────────────────────────────────────────────────────────
 # Checkout the built OCI image from BuildStream and load it into podman.
@@ -329,18 +263,12 @@ build variant="all":
 # Uses SUDO_CMD to handle root vs non-root: podman's rootful
 # containers-storage needs sudo for any user other than root.
 [group('build')]
-export variant="default":
+export:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    case "{{variant}}" in
-        default) ELEMENT="oci/bluefin.bst";        FINAL_NAME="{{image_name}}" ;;
-        nvidia)  ELEMENT="oci/bluefin-nvidia.bst"; FINAL_NAME="{{image_name}}-nvidia" ;;
-        *) echo "ERROR: unknown variant '{{variant}}' (expected: default | nvidia)" >&2; exit 1 ;;
-    esac
-    if [ "{{gaming}}" = "true" ]; then
-        FINAL_NAME="${FINAL_NAME}-gaming"
-    fi
+    ELEMENT="oci/mercury.bst"
+    FINAL_NAME="{{image_name}}"
     FINAL_TAG="{{image_tag}}"
 
     # Use sudo unless already root.
@@ -352,7 +280,7 @@ export variant="default":
     echo "==> Exporting OCI image ($ELEMENT → ${FINAL_NAME}:${FINAL_TAG})..."
     rm -rf .build-out .build-ownership-source
     just bst artifact checkout "$ELEMENT" --directory /src/.build-out
-    SIDECAR=.build-out/.dakota/ownership-final.json
+    SIDECAR=.build-out/.mercury/ownership-final.json
     if [ ! -f "$SIDECAR" ] || [ -L "$SIDECAR" ]; then
         echo "ERROR: $ELEMENT did not produce a regular ownership sidecar" >&2
         exit 1
@@ -361,7 +289,7 @@ export variant="default":
     cp --no-dereference "$SIDECAR" .build-ownership-source/ownership-final.json
 
     # Load the multi-layer OCI image and squash into a single layer.
-    # BuildStream produces separate layers (platform + gnomeos + bluefin);
+    # BuildStream produces separate layers (platform + gnomeos + mercury);
     # bootc and registry distribution work better with one squashed layer.
     # Using podman (not skopeo) ensures the squashed view is preserved on push.
     echo "==> Loading and squashing OCI image..."
@@ -418,13 +346,7 @@ export variant="default":
     MOUNT=$($SUDO_CMD podman image mount "$FINAL_IMAGE_ID")
     cleanup_ownership() { $SUDO_CMD podman image umount "$FINAL_IMAGE_ID" >/dev/null 2>&1 || true; }
     trap cleanup_ownership EXIT
-    OWNERSHIP_VARIANT="{{variant}}"
-    if [ "{{gaming}}" = "true" ]; then
-        case "{{variant}}" in
-            default) OWNERSHIP_VARIANT="gaming" ;;
-            nvidia) OWNERSHIP_VARIANT="nvidia-gaming" ;;
-        esac
-    fi
+    OWNERSHIP_VARIANT="default"
     OWNERSHIP_ARCH=$($SUDO_CMD podman image inspect --format '{{"{{"}}.Architecture{{"}}"}}' "$FINAL_IMAGE_ID")
     # The mounted root belongs to the same privileged store as Podman. Hashing
     # root-only files must use that privilege too, not the invoking user's UID.
@@ -493,26 +415,18 @@ bootc *ARGS:
         "{{image_name}}:{{image_tag}}" bootc {{ARGS}}
 
 # ── Generate bootable disk image ─────────────────────────────────────
-# Variant selects which loaded image to install (default | nvidia).
-# Mirrors `just build` / `just export`'s tag scheme.
+# Installs the loaded {{image_name}}:{{image_tag}} image to a disk image.
 [group('test')]
-generate-bootable-image variant="default" $base_dir=base_dir $filesystem=filesystem:
+generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    case "{{variant}}" in
-        default) FINAL_NAME="{{image_name}}" ;;
-        nvidia)  FINAL_NAME="{{image_name}}-nvidia" ;;
-        *) echo "ERROR: unknown variant '{{variant}}' (expected: default | nvidia)" >&2; exit 1 ;;
-    esac
-    if [ "{{gaming}}" = "true" ]; then
-        FINAL_NAME="${FINAL_NAME}-gaming"
-    fi
+    FINAL_NAME="{{image_name}}"
 
     REF="${FINAL_NAME}:{{image_tag}}"
     if ! sudo podman image exists "$REF"; then
         echo "ERROR: Image '$REF' not found in podman." >&2
-        echo "Run 'just build {{variant}}' first to build and export the OCI image." >&2
+        echo "Run 'just build' first to build and export the OCI image." >&2
         exit 1
     fi
 
@@ -780,18 +694,16 @@ show-me-the-future:
             --margin "1 2" \
             --padding "1 4" \
             'SHOW ME THE FUTURE' \
-            'Building Bluefin from source and booting it in a VM'
+            'Building Mercury from source and booting it in a VM'
     else
         echo ""
         echo "=== SHOW ME THE FUTURE ==="
-        echo "Building Bluefin from source and booting it in a VM"
+        echo "Building Mercury from source and booting it in a VM"
     fi
     echo ""
 
     # ── Steps ─────────────────────────────────────────────────────
-    # Pinned to the `default` variant so we don't double the wall time
-    # building the nvidia variant the user never boots in this flow.
-    run_step "Build OCI image" just build default
+    run_step "Build OCI image" just build
     echo ""
     run_step "Bootable disk" just generate-bootable-image
     echo ""
@@ -823,20 +735,20 @@ show-me-the-future:
 # intentionally has its own recipe so CI's unit gate has no Podman/network need.
 [group('test')]
 test-ownership-buildstream:
-    DAKOTA_OWNERSHIP_REAL_BST=1 python3 -m unittest scripts.test_ownership_buildstream -v
+    MERCURY_OWNERSHIP_REAL_BST=1 python3 -m unittest scripts.test_ownership_buildstream -v
 
 # Real non-root/sudo export in a disposable container; never changes host sudo.
 [group('test')]
 test-ownership-export:
-    DAKOTA_OWNERSHIP_EXPORT_TEST=1 python3 -m unittest scripts.test_ownership_export -v
+    MERCURY_OWNERSHIP_EXPORT_TEST=1 python3 -m unittest scripts.test_ownership_export -v
 
 # Isolated local CAS transfer and publisher test; shared BST cache is read-only.
 [group('test')]
-test-ownership-cold-cache default_ref nvidia_ref output:
-    python3 scripts/test_ownership_cold_cache.py "{{default_ref}}" "{{nvidia_ref}}" "{{output}}"
+test-ownership-cold-cache base_ref other_ref output:
+    python3 scripts/test_ownership_cold_cache.py "{{base_ref}}" "{{other_ref}}" "{{output}}"
 
 [group('test')]
-ownership-validate root sidecar arch="" variant="" manifest="/tmp/dakota-ownership-manifest.tsv":
+ownership-validate root sidecar arch="" variant="" manifest="/tmp/mercury-ownership-manifest.tsv":
     #!/usr/bin/env bash
     set -euo pipefail
     args=(validate-exported --root "{{root}}" --sidecar "{{sidecar}}" --manifest "{{manifest}}")
@@ -1080,7 +992,7 @@ debug-session: _ensure-bcvk
     #!/usr/bin/env bash
     set -euo pipefail
 
-    VM_NAME="dakota-debug-$$"
+    VM_NAME="mercury-debug-$$"
     SESSION_DIR="./debug-session"
     START_TS=$(date +%s)
 
@@ -1128,7 +1040,7 @@ debug-session: _ensure-bcvk
             echo "  summary.txt  — this file"
             echo ""
             echo "Include these artifacts when filing an issue at:"
-            echo "  https://github.com/projectbluefin/dakota/issues/new?template=bug-report.yml"
+            echo "  https://github.com/siddhj2206/mercury/issues"
         } > "${SESSION_DIR}/summary.txt"
 
         echo ""
@@ -1144,7 +1056,7 @@ debug-session: _ensure-bcvk
         fi
         echo ""
         echo "File an issue with the artifacts above:"
-        echo "  https://github.com/projectbluefin/dakota/issues/new?template=bug-report.yml"
+        echo "  https://github.com/siddhj2206/mercury/issues"
 
         echo "==> Tearing down VM ${VM_NAME}..."
         $SUDO_CMD bcvk ephemeral rm -f "$VM_NAME" 2>/dev/null || true
@@ -1191,7 +1103,7 @@ debug-session: _ensure-bcvk
     # Drop user into interactive SSH session
     $SUDO_CMD bcvk ephemeral ssh "$VM_NAME"
 
-# Automated boot smoke test — boots the image, verifies GDM starts, exits 0/1.
+# Automated boot smoke test — boots the image, verifies graphical.target is reached, exits 0/1.
 # Non-interactive. Intended for CI and agent verification loops.
 # Requires: bcvk, qemu-kvm, virtiofsd
 [group('test')]
@@ -1199,7 +1111,7 @@ boot-test: _ensure-bcvk
     #!/usr/bin/env bash
     set -euo pipefail
 
-    VM_NAME="dakota-boot-test-$$"
+    VM_NAME="mercury-boot-test-$$"
     TIMEOUT="${BOOT_TEST_TIMEOUT:-120}"
     STATUS=1
 
@@ -1249,7 +1161,6 @@ boot-test: _ensure-bcvk
     echo "==> Checking critical services..."
     CHECKS=(
         "graphical.target:systemctl is-active graphical.target"
-        "gdm:systemctl is-active gdm"
         "bootc:bootc status"
         "no-zram:test ! -e /sys/block/zram0"
     )
@@ -1297,23 +1208,21 @@ inspect: _ensure-bcvk
 # including GNOME/GTK/systemd from junctions (unlike syft which can only
 # fingerprint binaries in the rootfs and misses source-built packages).
 # Does NOT require a pre-built image — just the BST project files.
-# Output: dakota.spdx.json in repo root.
+# Output: mercury.spdx.json in repo root.
 #
 # Local testing:
-#   just sbom                                # generate SBOM
-#   jq '.spdxVersion' dakota.spdx.json      # verify SPDX-2.3
-#   jq '.packages | length' dakota.spdx.json  # expect ~1100+
-#   jq -r '.packages[].name' dakota.spdx.json | grep -i "gnome\|gtk\|systemd"
+#   just sbom                                 # generate SBOM
+#   jq '.spdxVersion' mercury.spdx.json       # verify SPDX-2.3
+#   jq '.packages | length' mercury.spdx.json  # expect ~1100+
+#   jq -r '.packages[].name' mercury.spdx.json | grep -i "gtk\|systemd"
 [group('test')]
-sbom variant="default":
+sbom:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    case "{{variant}}" in
-        default) ELEMENT="oci/bluefin.bst";        SPDX_NAME="dakota";        OUTFILE="dakota.spdx.json" ;;
-        nvidia)  ELEMENT="oci/bluefin-nvidia.bst"; SPDX_NAME="dakota-nvidia"; OUTFILE="dakota-nvidia.spdx.json" ;;
-        *) echo "ERROR: unknown variant '{{variant}}' (expected: default | nvidia)" >&2; exit 1 ;;
-    esac
+    ELEMENT="oci/mercury.bst"
+    SPDX_NAME="mercury"
+    OUTFILE="mercury.spdx.json"
 
     # Persist host-side caches before bind-mounting them into podman.
     # actions/cache restores archives but does not create missing directories on a cold miss.
@@ -1375,9 +1284,9 @@ sbom variant="default":
             done
             buildstream-sbom "${ELEMENT}" \
                 --spdx-name "${SPDX_NAME}" \
-                --spdx-namespace "https://github.com/projectbluefin/dakota/sbom/${GIT_SHA}" \
+                --spdx-namespace "https://github.com/siddhj2206/mercury/sbom/${GIT_SHA}" \
                 --spdx-creator "Tool: buildstream-sbom" \
-                --spdx-creator "Organization: projectbluefin" \
+                --spdx-creator "Organization: siddhj2206" \
                 --deps all \
                 --option secure_boot_signing true \
                 --output "/src/${OUTFILE}"
@@ -1392,15 +1301,15 @@ sbom variant="default":
 # ── Verify supply-chain signatures ───────────────────────────────────
 # Verify cosign signature + SBOM referrer + SLSA attestation for a
 # pushed image. Requires: cosign, oras, gh CLI.
-# Usage: just verify                           (uses ghcr.io/projectbluefin/dakota:stable)
-#        just verify ghcr.io/projectbluefin/dakota:testing
+# Usage: just verify                           (uses ghcr.io/siddhj2206/mercury:stable)
+#        just verify ghcr.io/siddhj2206/mercury:testing
 [group('test')]
 verify image_ref="":
     #!/usr/bin/env bash
     set -euo pipefail
 
     IMAGE="{{image_ref}}"
-    [ -z "$IMAGE" ] && IMAGE="ghcr.io/projectbluefin/dakota:stable"
+    [ -z "$IMAGE" ] && IMAGE="ghcr.io/siddhj2206/mercury:stable"
 
     echo "==> Verifying supply-chain security for: ${IMAGE}"
     echo ""
@@ -1413,7 +1322,7 @@ verify image_ref="":
     else
         cosign verify \
             --certificate-identity-regexp \
-                '^https://github\.com/projectbluefin/dakota/\.github/workflows/publish\.yml@refs/heads/(main|gh-readonly-queue/main/.+)$' \
+                '^https://github\.com/siddhj2206/mercury/\.github/workflows/publish\.yml@refs/heads/(main|gh-readonly-queue/main/.+)$' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             "${IMAGE}" && echo "PASS: signature valid" || { echo "FAIL: signature check failed"; STATUS=1; }
     fi
@@ -1434,39 +1343,9 @@ verify image_ref="":
         echo "SKIP: gh not installed"
     else
         gh attestation verify "oci://${IMAGE}" \
-            --repo projectbluefin/dakota && echo "PASS: attestation valid" || { echo "FAIL: attestation check failed"; STATUS=1; }
+            --repo siddhj2206/mercury && echo "PASS: attestation valid" || { echo "FAIL: attestation check failed"; STATUS=1; }
     fi
     exit "${STATUS}"
-
-# ── E2E dispatch ─────────────────────────────────────────────────────
-# e2e.yml is workflow_dispatch-only — PRs do not publish a :testing build
-# first, so running smoke on a PR would test a stale image. Dispatching it was
-# a loose `gh workflow run` incantation with no recipe until now.
-#
-# Dispatch the e2e workflow against a published image.
-[group('test')]
-e2e suites="smoke" image="ghcr.io/projectbluefin/dakota:testing":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if ! command -v gh >/dev/null 2>&1; then
-        echo "gh CLI is required to dispatch the e2e workflow" >&2
-        exit 2
-    fi
-    echo "==> Dispatching e2e: suites={{suites}} image={{image}}"
-    gh workflow run e2e.yml \
-        --repo projectbluefin/dakota \
-        --field image="{{image}}" \
-        --field suites="{{suites}}"
-    echo "==> Watch it with: gh run list --repo projectbluefin/dakota --workflow e2e.yml --limit 5"
-
-# Only meaningful against a fisherman to-filesystem install — see the header
-# of .github/workflows/e2e.yml for which of the three assertions gate on what.
-# Usage: just e2e-installer ghcr.io/projectbluefin/dakota:testing
-#
-# Dispatch the fisherman post-boot assertions (projectbluefin/dakota#651).
-[group('test')]
-e2e-installer image="ghcr.io/projectbluefin/dakota:testing":
-    just e2e installer "{{image}}"
 
 # ── Lint ─────────────────────────────────────────────────────────────
 [group('test')]
@@ -1538,94 +1417,16 @@ swap-audit:
             || fail "var-swap-swapfile.swap unit missing"
         [ -L /usr/lib/systemd/system/swap.target.wants/var-swap-swapfile.swap ] \
             || fail "swap.target.wants/var-swap-swapfile.swap symlink missing"
-        [ -x /usr/libexec/bluefin-swapfile-init ] \
-            || fail "/usr/libexec/bluefin-swapfile-init missing or not executable"
+        [ -x /usr/libexec/mercury-swapfile-init ] \
+            || fail "/usr/libexec/mercury-swapfile-init missing or not executable"
 
         # Actually run it. The container overlayfs cannot back a swapfile so it
         # exits early, but only after sizing and the free-space arithmetic --
         # which is where a broken coreutils invocation would surface. Presence
         # checks alone shipped exactly such a bug once.
-        /usr/libexec/bluefin-swapfile-init \
-            || fail "bluefin-swapfile-init exited non-zero"
+        /usr/libexec/mercury-swapfile-init \
+            || fail "mercury-swapfile-init exited non-zero"
 
         [ "$STATUS" -eq 0 ] && echo "PASS: swap/zram configuration OK"
-        exit "$STATUS"
-        '
-
-# ── Avatar audit ─────────────────────────────────────────────────────
-# Assert the Bluefin dinosaur avatars are actually reachable by GNOME's
-# account-picture pickers. Guards against the #353 regression class, where
-# the art shipped fine but nothing pointed GNOME at it.
-#
-# Two independent ways this breaks silently, both checked here:
-#   1. common.bst stops ingesting /usr/share/pixmaps/faces/bluefin/*.jpg.
-#   2. The dconf override ships but never reaches the compiled distro db
-#      (element dropped from the layer, or `dconf update` did not run).
-#
-# org.gnome.desktop.interface avatar-directories REPLACES the default face
-# dirs rather than adding to them (gnome-control-center
-# panels/system/users/cc-avatar-chooser.c, gnome-initial-setup
-# pages/account/um-photo-dialog.c), so a stale or typo'd path yields an
-# empty picker with no fallback. Every listed dir is therefore checked for
-# existence and for actual .jpg content.
-[group('test')]
-avatar-audit:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # Use sudo unless already root
-    SUDO_CMD=""
-    if [ "$(id -u)" -ne 0 ]; then
-        SUDO_CMD="sudo"
-    fi
-
-    echo "==> Auditing user-avatar configuration in {{image_name}}:{{image_tag}}..."
-    $SUDO_CMD podman run --rm --pull=never \
-        "{{image_name}}:{{image_tag}}" \
-        bash -c '
-        set -uo pipefail
-        STATUS=0
-        fail() { echo "FAIL: $1" >&2; STATUS=1; }
-
-        Q=$(printf "\047")
-        KEYFILE=/etc/dconf/db/distro.d/07-dakota-avatar-directories
-        DB=/etc/dconf/db/distro
-
-        # The art itself, straight from bluefin/common.bst.
-        compgen -G "/usr/share/pixmaps/faces/bluefin/*.jpg" > /dev/null \
-            || fail "no Bluefin avatar art under /usr/share/pixmaps/faces/bluefin"
-
-        # The distro dconf profile must read the distro db at all.
-        grep -qx "system-db:distro" /etc/dconf/profile/user 2>/dev/null \
-            || fail "/etc/dconf/profile/user does not read system-db:distro"
-
-        if [ ! -f "$KEYFILE" ]; then
-            fail "$KEYFILE missing"
-        elif [ ! -f "$DB" ]; then
-            fail "compiled dconf db $DB missing -- did dconf update run?"
-        else
-            VALUE=$(sed -n "s/^avatar-directories=//p" "$KEYFILE")
-            if [ -z "$VALUE" ]; then
-                fail "avatar-directories key missing from $KEYFILE"
-            else
-                DIRS=$(printf "%s" "$VALUE" | tr -d "[]${Q} " | tr "," "\n" | grep -v "^$")
-                if [ -z "$DIRS" ]; then
-                    fail "avatar-directories is empty -- the picker would show nothing"
-                else
-                    while read -r dir; do
-                        [ -d "$dir" ] \
-                            || { fail "avatar-directories lists $dir, which is not in the image"; continue; }
-                        compgen -G "${dir}/*.jpg" > /dev/null \
-                            || fail "$dir contains no .jpg faces"
-                        # gvdb keeps strings verbatim, so the compiled db can
-                        # be grepped without a dconf/D-Bus round trip.
-                        grep -qaF "$dir" "$DB" \
-                            || fail "$dir absent from compiled $DB -- override did not reach the db"
-                    done <<< "$DIRS"
-                fi
-            fi
-        fi
-
-        [ "$STATUS" -eq 0 ] && echo "PASS: user-avatar configuration OK"
         exit "$STATUS"
         '

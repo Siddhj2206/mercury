@@ -4,20 +4,19 @@
 
 | Tool | Why | Install |
 |---|---|---|
-| `podman` (rootful + rootless) | BST container + export/boot | Pre-installed on Bluefin |
-| `just` | All build/test commands | Pre-installed on Bluefin |
-| `qemu` | VM boot | `brew install qemu` |
-| `virtiofsd` | `just boot-fast` only | Host package manager / `brew install virtiofsd` |
+| `podman` (rootful + rootless) | BST container + export/boot | Host package manager |
+| `just` | All build/test commands | `brew install just` or package manager |
+| `qemu` | VM boot | `brew install qemu` / package manager |
+| `virtiofsd` | `just boot-fast` only | Host package manager |
 | `bcvk` | Ephemeral VM from container | Auto-installed by `just boot-fast` via cargo |
 | ~100 GB disk, ~16 GB RAM | BST cache + parallel builds | — |
 
 ### CPU baseline
 
-All x86_64 image variants require **x86-64-v3** (Intel Haswell Core or newer,
+The x86_64 image requires **x86-64-v3** (Intel Haswell Core or newer,
 AMD Excavator or newer, including all Ryzen). Check the exact CPU model: many
 Pentium, Celeron, and older Atom processors lack the required features even
-when newer than Haswell. VMs must expose v3 features to the guest. ARM/aarch64
-builds are unchanged.
+when newer than Haswell. VMs must expose v3 features to the guest.
 
 `project.conf` owns the default for both direct BuildStream use and `just`;
 CI build, export, and validation use that same default. The option is forwarded
@@ -27,19 +26,17 @@ rebuild when switching from baseline artifacts to v3.
 For a local baseline x86_64 build, use
 `BST_FLAGS="-o x86_64_v3 false" just build default` and keep that option for
 subsequent export/checkout commands. Direct BuildStream accepts
-`bst -o x86_64_v3 false ...` as well. This opt-out is not a separately published
-compatibility image.
+`bst -o x86_64_v3 false ...` as well.
 
-See [CPU compatibility](https://developers.redhat.com/articles/2024/01/02/exploring-x86-64-v3-red-hat-enterprise-linux-10)
-and [BuildStream project options](https://docs.buildstream.build/master/format_project.html#options).
+See [BuildStream project options](https://docs.buildstream.build/master/format_project.html#options).
 
 ## Repo layout
 
 | Path | Purpose |
 |---|---|
 | `elements/freedesktop-sdk.bst` | fdsdk junction — pinned to a release tag |
-| `elements/gnome-build-meta.bst` | GBM junction — tracks `gnome-51` branch |
-| `elements/bluefin/` | Bluefin-specific elements (~40 elements) |
+| `elements/gnome-build-meta.bst` | GBM junction — tracks a `gnome-*` branch |
+| `elements/mercury/` | Mercury-specific elements |
 | `elements/oci/` | OCI image assembly — layers + final image |
 | `patches/linux/` | Kernel patches (via fdsdk linux element) |
 | `files/` | Static files installed by elements |
@@ -51,8 +48,7 @@ and [BuildStream project options](https://docs.buildstream.build/master/format_p
 ```bash
 just validate                  # graph check — always run first (~5 min, no build)
 
-just build default             # build default image — warm cache: 2–5 min; cold: 60–90 min
-# or: just build all           # build all variants (default + nvidia)
+just build default             # build the image — warm cache: minutes; cold: 60–90 min
 
 just lint                      # bootc container lint — must pass before PR
 
@@ -68,122 +64,75 @@ First run is slow (cold BST cache). Subsequent runs are fast — BST caches by c
 
 ```bash
 just validate                                        # check element graph
-just bst build bluefin/tailscale.bst                 # build one element
-just bst shell --build bluefin/tailscale.bst         # sandbox shell
-just bst show --deps all oci/bluefin.bst             # full dependency graph
+just bst build mercury/some-element.bst              # build one element
+just bst shell --build mercury/some-element.bst      # sandbox shell
+just bst show --deps all oci/mercury.bst             # full dependency graph
 ```
 
 ## Updating source pins
 
 Run the same source-update logic as CI from a feature branch with a clean working
-tree (based on `upstream/testing` for normal development):
+tree:
 
 ```bash
 just update-sources --list                  # preview the scope, no network or writes
 just update-sources                         # CI-managed sources, kernels, and core junctions
 just update-sources --group bundle          # everything except core junctions
 just update-sources --group core-junctions  # GNOME Build Meta + matching SDK, plugins, patches
-just update-sources --group kernels         # standard + OGC kernel refs and OGC suffix
-just update-sources --element bluefin/gum.bst
+just update-sources --group kernels         # kernel refs
+just update-sources --element mercury/gum.bst
 
 git diff
 just validate
 ```
 
 The updater needs Python 3, `just`, Podman, `gh` (authenticated for GitHub release
-lookups), and `curl` (Tailscale's package feed and junction/patch sync).
-BuildStream runs in the usual container.
+lookups), and `curl` (junction/patch sync). BuildStream runs in the usual container.
 It edits local files only: no commits, pushes, workflow dispatches, or PRs.
 Run only one updater at a time in a checkout, and avoid editing its target files
 while it runs.
 
-“All” means the sources managed by the tracker, not every element or dependency
+"All" means the sources managed by the tracker, not every element or dependency
 inside upstream junctions. The source list lives in `scripts/update_sources.py`;
 CI reads its matrix from there too. Every element with a network source must be
 in `TRACKED`, `KERNELS`, `RELEASES`, or `DERIVED` (a pin that must equal another
 component's, moved by that component's updater), or in `PINNED` with the decision
-that blocks it; the updater tests enforce this. A missing updater is not a pin
-reason. Prefer a source kind BuildStream tracks by itself, as freedesktop-sdk and
-gnome-build-meta do: `git_repo` with a tag glob, or `anitya` for a release tarball
-listed on release-monitoring.org; those elements go in `TRACKED`. `RELEASES` is
-for what a source kind cannot express: several assets per release, asset names
-that embed a build number, packages that must stay on a series, or a version feed
-outside release-monitoring.org. Release assets advance their URLs before
-BuildStream tracks checksums, and an element with local patches is staged to
-prove they still apply before its update is recorded. Tracking explicitly targets **x86_64 only** for now,
-including the OCI source in `brew-tarball.bst`. Architecture-specific ARM URLs and
-checksums stay pinned together, so the two architectures may have different
-versions. Shared sources and junctions still advance; this is not an ARM build
-validation or removal of ARM support. Core updates
-derive the freedesktop-sdk pin from GNOME Build Meta and run `just patch-sync`
-plus `just patch-drift-check`; never track the SDK independently.
+that blocks it; the updater tests enforce this. Prefer a source kind BuildStream
+tracks by itself, as freedesktop-sdk and gnome-build-meta do: `git_repo` with a
+tag glob, or `anitya` for a release tarball listed on release-monitoring.org;
+those elements go in `TRACKED`. `RELEASES` is for what a source kind cannot
+express: several assets per release, asset names that embed a build number,
+packages that must stay on a series, or a version feed outside
+release-monitoring.org. Release assets advance their URLs before BuildStream
+tracks checksums, and an element with local patches is staged to prove they
+still apply before its update is recorded. Core updates derive the
+freedesktop-sdk pin from GNOME Build Meta and run `just patch-sync` plus
+`just patch-drift-check`; never track the SDK independently.
 
-### Kernels and the next stream
+### Kernels
 
-Both `core/linux-fdsdk.bst` (standard images) and `core/linux-ogc.bst` (gaming)
-are local overrides, not kernel pins inherited from the SDK junction. The default
-pass, `--group bundle`, and CI's shared matrix include them. `--group kernels`
-updates just these elements; `--element core/linux-ogc.bst` works too. Tracking
-preserves the checkout's configured series: testing currently restricts updates
-to `v7.2.*` / `v7.2.*-ogc*`, while next permits `v*` / `v*-ogc*`, including RCs.
-The OGC module-release suffix (`ogc-localversion`) is derived from its tracked tag;
-an unrecognizable tag fails and restores the entire element. After tracking, the
-updater runs `bst source fetch --deps none` for each kernel on x86_64. This fetches
-the complete source set and applies any downstream patch queues before the pin is
-accepted or recorded for CI. A fetch or patch failure restores the element's
-starting contents, including local edits and the OGC suffix, while other updates
-continue. Existing patches are never automatically dropped to make a bump pass.
-
-Shared package updates land through testing and sync to next, but kernels and
-junctions are next-owned. In a separate feature worktree based on `upstream/next`,
-run these once the shared updater is present there:
-
-```bash
-just update-sources --group core-junctions
-just update-sources --group kernels
-```
-
-The next tracker runs both groups into its existing PR. Kernel-containing next
-updates do not enable auto-merge; an existing PR's auto-merge is disabled before
-pushing a kernel change. Junction-only updates retain their existing policy.
-Testing kernel updates remain in the single non-junction bundle, with review notes.
+Kernel elements are local overrides, not pins inherited from the SDK junction.
+`--group kernels` updates just these elements; tracking preserves the checkout's
+configured series. After tracking, the updater runs
+`bst source fetch --deps none` for each kernel on x86_64, which fetches the
+complete source set and applies any downstream patch queues before the pin is
+accepted. A fetch or patch failure restores the element's starting contents.
+Existing patches are never automatically dropped to make a bump pass.
 
 Source fetching is not compilation or hardware validation. Before shipping,
-review the kernel source changes and any downstream patches, then build both
-kernels and their NVIDIA consumers (these builds are **not** run by the updater):
+review the kernel source changes and any downstream patches, then build the
+kernel elements (these builds are **not** run by the updater):
 
 ```bash
-just bst build core/linux-fdsdk.bst bluefin-nvidia/nvidia-drivers.bst
-BUILD_GAMING=true just bst build core/linux-ogc.bst bluefin-nvidia/nvidia-drivers.bst
+just bst build core/linux-fdsdk.bst
 ```
 
-The `build` label is for maintainers only. Contributors should ask a maintainer
-to apply it when CI image builds are needed. Maintainers should inspect each
-relevant variant's result: the build runs a `standard` and a `gaming` job, each
-building the default and NVIDIA images, and only the default image in the
-standard job must succeed. A green aggregate is not proof that the NVIDIA or
-gaming kernels and drivers built; check the job logs. Boot verification
-is still needed before release.
-When the FDSDK junction advances, also compare its kernel recipe, `patches/linux/`,
-`files/linux/config-utils.sh`, and `files/linux/fdsdk-config.sh` with our vendored
-copies. Reconcile changes while preserving Dakota's configuration; the updater
-prints a review reminder but does not overwrite these files automatically.
+Boot verification is still needed before release. When the FDSDK junction
+advances, also compare its kernel recipe, `patches/linux/`,
+`files/linux/config-utils.sh`, and `files/linux/fdsdk-config.sh` with our
+vendored copies. Reconcile changes while preserving Mercury's configuration.
 
 ### Release assets and failures
-
-Tailscale uses `Tarballs.amd64` from its
-[stable package feed](https://pkgs.tailscale.com/stable/?mode=json), not the latest
-GitHub release: a Git tag may exist without a matching Linux archive. The updater
-validates the filename and lets BuildStream track its checksum; a malformed feed
-or unavailable download fails without changing the existing pin.
-
-Ghostty publishes versioned tags but no versioned GitHub releases, so the updater
-reads the newest `vX.Y.Z` tag. Each release changes its Zig dependency graph, so
-`files/scripts/generate_ghostty_sources.py <version>` re-pins the release and every
-package listed in its `build.zig.zon.json` (the graph upstream publishes for
-[packagers](https://github.com/ghostty-org/ghostty/blob/main/PACKAGING.md)). It
-refuses a release whose `minimum_zig_version` is newer than `bluefin/zig.bst`; bump
-Zig first, then rerun the update.
 
 An individual failure restores that update's starting files (the entire element
 or junction/patch group), continues the remaining updates, and causes
@@ -193,115 +142,6 @@ alone does not prove that updated sources build or that downstream patches apply
 `--group tracked` and `--group tarballs` can rerun
 those subsets. `--record-dir` is for CI bundle artifacts, not needed locally.
 
-## Desktop integrations
-
-Keep the established desktop defaults, with fuzzy application search, Tiling
-Shell, and BudsLink enabled. BudsLink's default panel stays hidden until a
-supported device is present. Syncthing Toggle, Tailscale Quick Settings, the
-extra audio hider/renamer, and Power Status Color are installed but
-opt-in through the Extensions app. Their required backends
-remain available; enabling a control should not require installing missing
-native software.
-
-- **Sync Folder (Syncthing):** the opt-in Quick Settings control prepares a
-  same-UID, rootless Syncthing container through
-  [Podman's user Quadlet integration](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html).
-  Its extension element explicitly declares Podman (including the user Quadlet
-  generator), a POSIX shell, GJS, libsoup 3, `xdg-user-dirs`, and Dakota's core
-  utilities as runtime dependencies, alongside GLib and GNOME Shell. Install the complete
-  `extensions/syncthing-toggle/` directory, including hidden deployable assets;
-  `service.js` and `syncthing.container.in` are required runtime assets, not
-  build-only files. Keep the extension-local schemas strictly compiled and
-  install the schema XML globally as well.
-  `bluefin/syncthing.bst` still installs the native `syncthing.service` user unit
-  so existing stopped configurations can be inspected safely during migration;
-  preserve existing state, folders, and user startup choices. Fresh runtime
-  setup uses available XDG Documents locally and unpaused, with other XDG
-  presets paused; it does not create `~/Sync` or pair/share with peers without
-  explicit consent. Dakota's `start-stop-only=true` dconf default keeps the
-  sharing switch independent of login startup. No service is started for every
-  user automatically, and no identities, credentials, personal peer settings,
-  or user Quadlets are generated during image construction.
-  Pin reviewed source from merged `bluefin-bling` main, not a source-PR head.
-  Rebuild and verify that exact Dakota candidate; a per-user extension overlay
-  is diagnostic evidence, not proof of the packaged image.
-- **Tailscale:** the daemon is enabled in the image, but a fresh installation is
-  unauthenticated. The application launcher offers **Tailscale Setup**, as does
-  the Quick Settings menu after the user enables that extension. Setup requests administrator
-  approval to make the requesting account a
-  [Tailscale operator](https://tailscale.com/docs/reference/troubleshooting/linux/linux-operator-permission),
-  then opens browser sign-in. It will not replace another user's operator
-  assignment. No auth keys, tailnet identity, exit-node selection, or automatic
-  privilege grants are baked into the image. Closing setup does not disconnect
-  an existing connection or revoke an already-approved operator assignment.
-- **BudsLink:** the companion Flatpak is declared in the image's preinstall
-  configuration. `flatpak-preinstall.service` checks `flatpak preinstall --help`
-  before invoking installation. The extension activates the app's D-Bus service
-  when supported earbuds connect, and retries if installation finishes after
-  login. Installation needs network access; pairing remains the user's choice.
-
-Syncthing and Tailscale are independent controls. There is no automatic tailnet
-folder sharing: Syncthing devices and folders require explicit pairing/sharing.
-
-Existing users' saved extension selections are not rewritten. There is no
-login migration to force new extensions on or turn off extensions a user has
-selected. Image defaults apply when there is no user override. For host
-diagnosis use `/usr/bin/gsettings`, not a Homebrew copy that may lack the dconf
-backend and therefore report schema defaults instead of the running desktop's
-settings.
-
-Tiling Shell uses the GNOME Extensions reviewed archive that declares GNOME 50
-support. Its package build checks that metadata, rather than treating disabled
-Shell version validation as proof of compatibility. Packaging checks do not
-replace a graphical-session test, particularly when multiple audio extensions
-modify the same Quick Settings controls.
-
-## Fastfetch ownership
-
-`bluefin/common.bst` installs the fastfetch config and wrapper from its pinned
-`projectbluefin/common` source. Do not copy the layout into Dakota or snapshot
-its icons/colors in tests. Common updates should carry presentation changes
-without a second sync step.
-
-Common's install-date line reads `/var/lib/ublue-os/install-date` first and
-falls back to `/var/log` only when that record is missing. `firstboot-date.bst`
-owns that runtime record, not the presentation; `nerd-fonts-symbols.bst`
-supplies icon fallback without changing the default text font.
-
-The record is written by `ublue-firstboot-date.path`, which starts the service
-only once `/run/systemd/timesync/synchronized` exists. Do not enable the service
-directly or order it on `time-set.target`: on hardware whose RTC the kernel does
-not read early, the clock is still the systemd build epoch at that point, and
-the write-once record would keep that date permanently. A machine that never
-reaches an NTP server keeps no record and uses Common's `/var/log` fallback.
-The record is write-once with one exception: `ublue-firstboot-date` replaces a
-record dated 2011, which can only have been written under that build-epoch
-clock, with the date of the first synchronized boot.
-See [systemd-timesyncd.service(8)](https://www.freedesktop.org/software/systemd/man/latest/systemd-timesyncd.service.html).
-
-`patches/common/0006-fastfetch-drop-weekly-stats.patch` removes an input Dakota
-cannot provide. It drops the weekly user and Bazaar install count lines,
-because other images fill `fastfetch-user-count` and `bazaar-install-count`
-with a build-time network fetch that Dakota's sandboxed builds cannot make. Do
-not ship placeholder or invented counts in their place.
-
-Run `just bst build bluefin/common.bst` to exercise the patches against the
-pinned source. A source rewrite that invalidates a patch must be reviewed, not
-worked around by restoring a local config. Check glyph rendering in a booted
-image.
-
-## Ghostty theme and configuration defaults
-
-`bluefin/common.bst` imports Ghostty's GNOME profile from `projectbluefin/common`.
-Because Dakota uses Ghostty as its primary terminal emulator:
-- `patches/common/0002-ghostty-dual-theme.patch` configures `theme = light:Catppuccin Latte,dark:Catppuccin Mocha`
-  so that Ghostty follows the GNOME Dark/Light style toggle button out of the box.
-  Drop this patch once common carries dual-theme by default.
-- `patches/ghostty/0001-disable-resize-overlay-by-default.patch` sets the compiled-in
-  default for `resize-overlay` to `never` in `elements/bluefin/ghostty.bst`. This ensures
-  both existing and new user sessions avoid the Wayland resize feedback loop with
-  GNOME Shell/Mutter without relying solely on `/etc/skel` propagation.
-
 ## What NOT to do
 
 | Don't | Why |
@@ -309,6 +149,4 @@ Because Dakota uses Ghostty as its primary terminal emulator:
 | `rpm-ostree`, `pip install`, `apt-get` in elements | BST-only build; all deps from junctions |
 | `$(date)`, `$(hostname)`, `$(curl ...)` in `install-commands` | Breaks reproducibility and BST caching |
 | Patch junction files directly | Use `patch_queue` source in the junction `.bst` |
-| Force-push to `main` | Stable promotion operates on image digests from testing SHAs, not Git branch updates |
-| Close issues via API or comment | Use `Closes #NNN` in the PR body |
 | Open a PR without running `just validate` | Wastes everyone's time |

@@ -8,7 +8,7 @@ Description=Capability-enabled nethogs for per-process network statistics
 Documentation=man:nethogs(8)
 
 [Mount]
-What=/usr/libexec/dakota-nethogs/nethogs
+What=/usr/libexec/mercury-nethogs/nethogs
 Where=/usr/bin/nethogs
 Type=none
 Options=bind,ro

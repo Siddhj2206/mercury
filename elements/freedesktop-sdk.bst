@@ -7,9 +7,9 @@ sources:
   ref: freedesktop-sdk-26.08.4-0-g114ae909ec9881958bd507c8b4414aa33f758d2b
 - kind: patch_queue
   path: patches/freedesktop-sdk
-# Dakota patches are separate from the GBM queue overwritten by `just patch-sync`.
+# Mercury patches are separate from the GBM queue overwritten by `just patch-sync`.
 - kind: patch_queue
-  path: patches/freedesktop-sdk-dakota
+  path: patches/freedesktop-sdk-mercury
 
 config:
   options:
@@ -77,11 +77,8 @@ config:
     components/libical.bst: gnome-build-meta.bst:core-deps/libical3.bst
 
     # Keep kernel selection at the junction boundary so every consumer
-    # (unsigned-modules, initramfs, nvidia-drivers) resolves the same
+    # (unsigned-modules, initramfs) resolves the same
     # kernel and module/kernel co-versioning holds by construction.
     components/linux.bst: core/linux-fdsdk.bst
 
     vm/mesa-default.bst: core/mesa-default.bst
-    (?):
-    - gaming == true:
-        components/linux.bst: core/linux-ogc.bst

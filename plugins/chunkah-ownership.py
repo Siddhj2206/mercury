@@ -18,14 +18,14 @@ from buildstream.storage.directory import DirectoryError, FileType
 
 
 _INTERVAL_HINTS = (
-    ("bluefin/", "weekly"), ("gnome/gnome-shell", "weekly"),
+    ("mercury/", "weekly"), ("gnome/gnome-shell", "weekly"),
     ("gnome/mutter", "weekly"), ("gnome/gdm", "weekly"),
     ("gnome/nautilus", "weekly"), ("gnome/", "monthly"),
     ("freedesktop-sdk", "monthly"),
 )
 _INTEGRATION_OWNER = {
-    "component": "dakota.integration",
-    "producer": "dakota:integration",
+    "component": "mercury.integration",
+    "producer": "mercury:integration",
     "interval": "monthly",
 }
 
