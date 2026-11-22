@@ -13,7 +13,7 @@
 ## Secure Boot signing inputs (kernel, modules, shim, systemd-boot, fwupd, junction bumps)
 
 - [ ] The maintainer booted the built image on real hardware with Secure Boot on
-- [ ] `mercury-secure-boot status` and `ujust verify` pass on that boot
+- [ ] `mercury-secure-boot status` and `mercury verify` pass on that boot
 
 ## Junction bumps (`gnome-build-meta.bst` or `freedesktop-sdk.bst`)
 

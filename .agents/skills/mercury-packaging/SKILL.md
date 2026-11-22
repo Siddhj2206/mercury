@@ -1,35 +1,35 @@
 ---
-name: dakota-packaging
-description: Add, remove, or update native software built from source in Dakota, including Go, Rust, Zig, C/Meson, and binary releases.
+name: mercury-packaging
+description: Add, remove, or update native software built from source in Mercury, including Go, Rust, Zig, C/Meson, and binary releases.
 metadata:
   context7-sources:
     - /apache/buildstream
 ---
 
-# Dakota Packaging
+# Mercury Packaging
 
-Package software as BuildStream elements. Dakota builds natively from source and does not consume RPMs, DNF repositories, COPRs, or Containerfile overlays.
+Package software as BuildStream elements. Mercury builds natively from source and does not consume RPMs, DNF repositories, COPRs, or Containerfile overlays.
 
 ## When to Use
 
-- Adding a new native CLI tool, service, or library to Dakota
-- Updating an existing package element under `elements/bluefin/` or `elements/core/`
+- Adding a new native CLI tool, service, or library to Mercury
+- Updating an existing package element under `elements/mercury/` or `elements/core/`
 - Generating offline crate sources for Rust programs
 - Removing deprecated software and cleaning up dependency stacks
 
 ## When NOT to Use
 
-- Packaging GNOME Shell extensions → load `dakota-extensions`
-- Host Homebrew integration or formulas → load `dakota-workstation`
-- Layer composition in `elements/oci/layers/` → load `dakota-image`
-- ujust user commands → load `dakota-ujust`
+- Desktop session stack (niri, DMS, Qt6, greetd, quickshell) → load `mercury-desktop`
+- Host Homebrew integration → load `mercury-workstation`
+- Layer composition in `elements/oci/layers/` → load `mercury-image`
+- `mercury` user commands → load `mercury-cli`
 
 ## Core Process
 
 1. **Locate Reference Pattern**: Identify an existing element with the same toolchain (Go, Rust, Zig, Meson, CMake, Autotools, or binary).
-2. **Verify Upstream**: Confirm upstream source, open-source license, release tag, and multi-arch support (`x86_64` and `aarch64`).
-3. **Declare Element**: Create `elements/bluefin/<name>.bst` or under the appropriate subdirectory.
-4. **Wire Dependencies**: Wire into `elements/bluefin/deps.bst` (the aggregator stack) or the relevant layer composition element.
+2. **Verify Upstream**: Confirm upstream source, open-source license, and release tag. Mercury ships x86_64 only — no aarch64 requirement.
+3. **Declare Element**: Create `elements/mercury/<name>.bst` or under the appropriate subdirectory.
+4. **Wire Dependencies**: Wire into `elements/mercury/deps.bst` (the aggregator stack) or the relevant layer composition element.
 5. **Generate Offline Sources (Rust)**:
    ```bash
    python3 files/scripts/generate_cargo_sources.py path/to/Cargo.lock
@@ -38,23 +38,23 @@ Package software as BuildStream elements. Dakota builds natively from source and
 7. **Validate and Build**:
    ```bash
    just validate
-   just bst build bluefin/<name>.bst
+   just bst build mercury/<name>.bst
    ```
 8. **Inspect Output**: Check installed paths and permissions inside the artifact before expanding layer filters.
 
 ## Language Invariants
 
-- **Go**: Use `go build` with flags ensuring deterministic, offline compilation (`-buildvcs=false`, `-trimpath`). Statically or dynamically link as appropriate. Do not run `go get` or `go install` across the network.
+- **Go**: Use `go build` with flags ensuring deterministic, offline compilation (`-buildvcs=false`, `-trimpath`). Do not run `go get` or `go install` across the network. Note: the desktop stack's Go binaries (`dms`, `dgop`, `dsearch`, `dms-greeter`) are an accepted exception — they ship upstream's signed release binaries because there is no `go_module` source generator; see `docs/desktop-elements.md`.
 - **Rust**: Never hand-craft crate lists. Always use `files/scripts/generate_cargo_sources.py` from `Cargo.lock` to generate `kind: cargo2` source blocks. Build with `cargo --frozen --offline`.
 - **Zig**: Pin the exact toolchain version; specify the target triple explicitly. Generate dependency sources from upstream's lock data (Ghostty: `files/scripts/generate_ghostty_sources.py`), never by hand. Populate the package cache by unpacking each archive and running `zig fetch <directory>`: `zig fetch <local tarball>` caches it without stripping the top-level directory, and the package then fails its hash check at build time. Never ignore a failed `zig fetch`.
 - **C/Meson/Autotools**: Inherit build dependencies from junctions (`freedesktop-sdk.bst:components/...`). Do not install unpinned dependencies.
-- **Binary Releases**: Require per-architecture URLs, SHA256 checksums, and license installation to `%{install-root}%{datadir}/licenses/<package>/`.
+- **Binary Releases**: Require SHA256 checksums and license installation to `%{install-root}%{datadir}/licenses/<package>/`.
 
 ## Package Removal Hygiene
 
 When deleting a package:
-1. Trace reverse dependencies with `just bst show --deps all oci/bluefin.bst | grep <element>`.
-2. Remove entry from `elements/bluefin/deps.bst` and layer compose elements.
+1. Trace reverse dependencies with `just bst show --deps all oci/mercury.bst | grep <element>`.
+2. Remove entry from `elements/mercury/deps.bst` and layer compose elements.
 3. Delete static files, systemd unit symlinks, and any patches in `patches/`.
 4. Run `just validate` to confirm the graph is sound.
 
@@ -72,18 +72,20 @@ When deleting a package:
 - Hand-maintained Cargo source blocks without `generate_cargo_sources.py`
 - Storing pre-compiled binaries in git instead of downloading release archives via sources
 - Unpinned git tracking branches (`track: main` without a pinned `ref:`)
+- aarch64 sources or conditionals — Mercury is x86_64 only
 
 ## Verification
 
 - [ ] `just validate` passes
-- [ ] Element builds cleanly via `just bst build bluefin/<name>.bst`
+- [ ] Element builds cleanly via `just bst build mercury/<name>.bst`
 - [ ] No network access is attempted during sandbox compilation
 - [ ] Installed binaries, configs, and licenses land in standard `/usr` hierarchy
-- [ ] Element is added to `elements/bluefin/deps.bst`
+- [ ] Element is added to `elements/mercury/deps.bst`
+- [ ] Element registered in `scripts/update_sources.py`
 
 ## References
 
 - [`docs/build.md`](../../../docs/build.md)
 - [`docs/pr-checklist.md`](../../../docs/pr-checklist.md)
-- [`elements/bluefin/`](../../../elements/bluefin/)
+- [`elements/mercury/`](../../../elements/mercury/)
 - [`elements/core/`](../../../elements/core/)

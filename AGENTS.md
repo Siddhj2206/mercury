@@ -7,8 +7,8 @@ package installation. Make image changes through BST elements.
 
 Project skills live in `.agents/skills/` and are discovered by Pi and GitHub
 Copilot. Load only the skill matching the task; do not read every skill.
-(Skill files still carry their upstream `dakota-*` names; their guidance
-applies to Mercury's same machinery.)
+Skills are named `mercury-*`; `mercury-desktop` covers the niri + DMS stack
+(there are no GNOME Shell extensions).
 
 ## Factory model invariants
 

@@ -13,11 +13,11 @@ Load when testing bootc upgrades via a local registry — QEMU VM or physical ha
 
 ## When to Use
 
-Use when you need to validate a Dakota image upgrade locally before GHCR publish, reproduce bootc upgrade behavior on hardware, or test a boot path with a local registry.
+Use when you need to validate a Mercury image upgrade locally before GHCR publish, reproduce bootc upgrade behavior on hardware, or test a boot path with a local registry.
 
 ## When NOT to Use
 
-- CI pipeline questions → load `dakota-ci`
+- CI pipeline questions → load `mercury-ci`
 
 ## Core Process
 
@@ -29,7 +29,7 @@ Use when you need to validate a Dakota image upgrade locally before GHCR publish
 
 ## Overview
 
-Run a local zot registry → build dakota image → push to local registry → boot a VM or physical machine pointed at the local registry → run `bootc upgrade`.
+Run a local zot registry → build mercury image → push to local registry → boot a VM or physical machine pointed at the local registry → run `bootc upgrade`.
 
 ## Setup
 
@@ -89,8 +89,8 @@ just boot-fast     # ephemeral VM via virtiofs (requires virtiofsd)
 just boot-vm       # standard QEMU VM with display
 
 # 5. On the test machine — switch to local registry (first time only)
-sudo bootc switch 10.0.2.2:5000/dakota:latest          # QEMU
-sudo bootc switch <build-host-ip>:5000/dakota:latest   # Physical
+sudo bootc switch 10.0.2.2:5000/mercury:latest          # QEMU
+sudo bootc switch <build-host-ip>:5000/mercury:latest   # Physical
 
 # 6. Subsequent upgrades
 sudo bootc upgrade
@@ -110,7 +110,7 @@ journalctl -p err --since boot   # check for boot errors
 ## Reverting to GHCR
 
 ```bash
-sudo bootc switch ghcr.io/projectbluefin/dakota:stable
+sudo bootc switch ghcr.io/siddhj2206/mercury:latest
 sudo systemctl reboot
 ```
 
@@ -157,7 +157,7 @@ Do not use `--compression-format=zstd:chunked` for local registry pushes. It bre
 just push-local localhost:5000
 
 # Wrong — breaks composefs
-sudo podman push --compression-format=zstd:chunked localhost:5000/dakota:latest
+sudo podman push --compression-format=zstd:chunked localhost:5000/mercury:latest
 ```
 
 ### bootc switch Same-Content Trap
@@ -165,10 +165,10 @@ sudo podman push --compression-format=zstd:chunked localhost:5000/dakota:latest
 `bootc switch <tag>` silently does nothing if the tag resolves to the already-booted digest. Force the upgrade with the exact digest:
 
 ```bash
-DIGEST=$(curl -sI http://<zot-registry>/v2/dakota/manifests/<TAG> \
+DIGEST=$(curl -sI http://<zot-registry>/v2/mercury/manifests/<TAG> \
   -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
   | grep -i docker-content-digest | awk '{print $2}' | tr -d '\r')
-sudo bootc switch --transport registry <zot-registry>/dakota@${DIGEST}
+sudo bootc switch --transport registry <zot-registry>/mercury@${DIGEST}
 ```
 
 ### Functional Assertions Over File Presence
@@ -180,12 +180,13 @@ behavior check on the test machine, for example:
 # Checks that the installed CLI loads and returns its version.
 flatpak --version | grep -q '^Flatpak '
 
-# Checks that the installed, merged ujust recipe set parses.
-ujust --list
+# Checks that the `mercury` user command loads its recipe set.
+mercury --list
 ```
 
 These checks do not prove Flatpak installation or a particular recipe's behavior.
-For a changed recipe, identify its definition in Dakota or the pinned common
-source and design a safe assertion for that behavior. Do not invoke `ujust report`
-or another data-donation command as an unattended smoke test; those commands
-require a user's review and consent.
+For a changed recipe, identify its definition in
+`files/system/shared/usr/share/mercury/justfile` and design a safe assertion
+for that behavior. Do not invoke `mercury report` or another data-donation
+command as an unattended smoke test; those commands require a user's review
+and consent.

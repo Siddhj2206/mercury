@@ -1,9 +1,9 @@
 ---
-name: dakota-factory
-description: "Maintain task-relevant Dakota guidance: documentation accuracy, official-source verification, and skill auditing. Use when auditing skills or correcting durable guidance revealed by a task."
+name: mercury-factory
+description: "Maintain task-relevant Mercury guidance: documentation accuracy, official-source verification, and skill auditing. Use when auditing skills or correcting durable guidance revealed by a task."
 ---
 
-# Dakota Factory Model
+# Mercury Factory Model
 
 Keep documentation aligned with executable configuration. Correct durable guidance relevant to the task, without requiring a documentation change for every session.
 
@@ -17,7 +17,7 @@ Keep documentation aligned with executable configuration. Correct durable guidan
 ## When NOT to Use
 
 - Read-only queries without authorization to change documentation
-- Pure dependency version updates handled automatically by Renovate
+- Pure dependency version updates handled automatically by Renovate or `track-bst-sources.yml`
 
 ## Core Process
 
@@ -37,7 +37,7 @@ Keep documentation aligned with executable configuration. Correct durable guidan
    - `## Red Flags`
    - `## Verification`
 4. **Verify Official Documentation**:
-   - Identify the external tool and the version used by Dakota.
+   - Identify the external tool and the version used by Mercury.
    - Read its current official documentation directly, or use Context7 when available.
    - Verify the specific syntax or behavior against the pinned source when needed.
    - Cite the official URL in relevant guidance or optional `metadata.verified-sources`.

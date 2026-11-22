@@ -1,14 +1,14 @@
 ---
-name: dakota-buildstream
-description: BuildStream elements, junctions, patches, dependency graphs, and build failures in Dakota. Use when editing elements, project.conf, junctions, or patches.
+name: mercury-buildstream
+description: BuildStream elements, junctions, patches, dependency graphs, and build failures in Mercury. Use when editing elements, project.conf, junctions, or patches.
 metadata:
   context7-sources:
     - /apache/buildstream
 ---
 
-# Dakota BuildStream
+# Mercury BuildStream
 
-Dakota builds the bootc desktop image entirely from source using BuildStream 2.
+Mercury builds the bootc desktop image entirely from source using BuildStream 2.
 Never translate RPM, DNF, COPR, or Containerfile workflows into this repository.
 
 ## When to Use
@@ -20,15 +20,15 @@ Never translate RPM, DNF, COPR, or Containerfile workflows into this repository.
 
 ## When NOT to Use
 
-- Workstation Homebrew integration → load `dakota-workstation`
-- End-user ujust recipes → load `dakota-ujust`
-- GNOME Shell extensions packaging → load `dakota-extensions`
-- Image layer composition and boot verification → load `dakota-image`
+- Workstation Homebrew integration → load `mercury-workstation`
+- End-user `mercury` command recipes → load `mercury-cli`
+- Desktop stack elements (niri, DMS, Qt6, greetd) → load `mercury-desktop`
+- Image layer composition and boot verification → load `mercury-image`
 
 ## Core Process
 
 1. **Inspect Graph**: Run `just bst show --deps all <element>` to trace dependencies and dependents.
-2. **Consult Nearest Pattern**: Check elements with similar build systems (`manual`, `autotools`, `meson`, `cmake`).
+2. **Consult Nearest Pattern**: Check elements with similar build systems (`manual`, `autotools`, `meson`, `cmake`). Elements live under `elements/{mercury,system,desktop,core,oci,gnomeos-deps}/`.
 3. **Verify Syntax**: Check syntax against official BuildStream documentation (`/apache/buildstream`).
 4. **Implement Deterministically**: Ensure build/install steps are reproducible (no network, timestamps, or host identity).
 5. **Validate Graph**: Run `just validate`. For element-specific tests, build the narrowest target (`just bst build <element>`).
@@ -52,7 +52,7 @@ Never translate RPM, DNF, COPR, or Containerfile workflows into this repository.
 
 | Rationalization | Reality |
 |---|---|
-| "I can install this package with DNF in a container step." | Dakota has no DNF or RPM database. All packages are BST elements. |
+| "I can install this package with DNF in a container step." | Mercury has no DNF or RPM database. All packages are BST elements. |
 | "A `kind: stack` element will put its files into the image layer." | Stack elements produce empty artifacts. Layers require `kind: compose`. |
 | "I'll fetch dependencies during `install-commands`." | Sandboxes lack network access during build. All sources must be declared in `sources:`. |
 | "I'll patch the staged junction file directly in `.bst/`." | Staged junction edits are wiped on cache cleans. Use `patches/` with `patch_queue`. |

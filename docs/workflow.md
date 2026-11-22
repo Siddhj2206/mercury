@@ -7,14 +7,14 @@ hierarchy, no triage team — issues and PRs are plain GitHub.
 
 `filed → triaged → fixed (or wontfix)`
 
-- `report: attached` means a diagnostic bundle from `ujust report` is present.
+- `report: attached` means a diagnostic bundle from `mercury report` is present.
   Read it before asking for more logs.
-- `ujust confirm` adds another hardware instance without a duplicate issue.
-- `ujust verify` adds post-fix evidence on real hardware.
+- `mercury confirm` adds another hardware instance without a duplicate issue.
+- `mercury verify` adds post-fix evidence on real hardware.
 
 ### Data donation pattern
 
-`ujust report` is a deliberate data donation. The Report a Problem app shows
+`mercury report` is a deliberate data donation. The Report a Problem app shows
 the scrubbed payload before anything is published, then files the issue with
 the user's `gh` login (a secret gist only when GitHub refuses the artifact).
 That is not telemetry. See [feedback-loop.md](feedback-loop.md).

@@ -36,7 +36,7 @@ available — do not ask the reporter to re-describe what the report contains.
 1. **Evidence is always user-owned.** Reports belong to the user who filed
    them. Nothing is aggregated into a central database.
 2. **The Justfile is the single source of truth.** Every verification step is
-   a `just` or `ujust` command — no loose shell incantations.
+   a `just` or `mercury` command — no loose shell incantations.
 3. **CI supplements, never replaces, hardware feedback.** Automated boot
    tests run in QEMU; users have real hardware with real variance.
 4. **Agents produce the same evidence as humans.** An agent claiming an issue

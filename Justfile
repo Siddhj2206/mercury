@@ -1298,54 +1298,27 @@ sbom:
     echo "==> Package count:"
     jq '.packages | length' "${OUTFILE}"
 
-# ── Verify supply-chain signatures ───────────────────────────────────
-# Verify cosign signature + SBOM referrer + SLSA attestation for a
-# pushed image. Requires: cosign, oras, gh CLI.
-# Usage: just verify                           (uses ghcr.io/siddhj2206/mercury:stable)
-#        just verify ghcr.io/siddhj2206/mercury:testing
+# ── Verify supply-chain signature ──────────────────────────────────
+# Verify the cosign keyless signature for a pushed image — same check CI
+# runs after signing. Requires: cosign.
+# Usage: just verify                            (defaults to :latest)
+#        just verify ghcr.io/siddhj2206/mercury:2026.11.22
 [group('test')]
 verify image_ref="":
     #!/usr/bin/env bash
     set -euo pipefail
 
     IMAGE="{{image_ref}}"
-    [ -z "$IMAGE" ] && IMAGE="ghcr.io/siddhj2206/mercury:stable"
+    [ -z "$IMAGE" ] && IMAGE="ghcr.io/siddhj2206/mercury:latest"
 
-    echo "==> Verifying supply-chain security for: ${IMAGE}"
-    echo ""
-    STATUS=0
-
-    # 1. Cosign keyless signature
-    echo "── Cosign signature (keyless / Sigstore OIDC) ──"
-    if ! command -v cosign &>/dev/null; then
-        echo "SKIP: cosign not installed"
-    else
-        cosign verify \
-            --certificate-identity-regexp \
-                '^https://github\.com/siddhj2206/mercury/\.github/workflows/publish\.yml@refs/heads/(main|gh-readonly-queue/main/.+)$' \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "${IMAGE}" && echo "PASS: signature valid" || { echo "FAIL: signature check failed"; STATUS=1; }
-    fi
-    echo ""
-
-    # 2. SBOM referrer
-    echo "── SBOM OCI referrer ──"
-    if ! command -v oras &>/dev/null; then
-        echo "SKIP: oras not installed"
-    else
-        oras discover "${IMAGE}" && echo "PASS: referrers listed above" || { echo "FAIL: oras discover failed"; STATUS=1; }
-    fi
-    echo ""
-
-    # 3. SLSA attestation
-    echo "── SLSA build provenance (actions/attest) ──"
-    if ! command -v gh &>/dev/null; then
-        echo "SKIP: gh not installed"
-    else
-        gh attestation verify "oci://${IMAGE}" \
-            --repo siddhj2206/mercury && echo "PASS: attestation valid" || { echo "FAIL: attestation check failed"; STATUS=1; }
-    fi
-    exit "${STATUS}"
+    echo "==> Verifying cosign signature for: ${IMAGE}"
+    # Exact identity: only build.yml on main may have signed. GitHub keeps
+    # owner capitalisation in the cert; match case-insensitively.
+    cosign verify \
+        --certificate-identity-regexp \
+            '(?i)^https://github\.com/siddhj2206/mercury/\.github/workflows/build\.yml@refs/heads/main$' \
+        --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+        "${IMAGE}" && echo "PASS: signature valid"
 
 # ── Lint ─────────────────────────────────────────────────────────────
 [group('test')]
