@@ -63,6 +63,31 @@ refresh-config app:
         echo "Restored ${name} from the image defaults"
     done
 
+# Collect a diagnostic bundle for filing an issue (hardware, image, failed
+# units, journal errors). Nothing sensitive is collected; review the tarball
+# before attaching it.
+report:
+    #!/usr/bin/bash
+    set -euo pipefail
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    out="${HOME}/mercury-report-${stamp}"
+    mkdir -p "${out}"
+    {
+      echo '=== os-release ==='; cat /etc/os-release
+      echo; echo '=== image-info ==='; cat /usr/share/mercury/image-info.json 2>/dev/null || true
+      echo; echo '=== bootc status ==='; bootc status 2>&1 || true
+      echo; echo '=== fastfetch ==='; fastfetch --structure os:kernel:de:wm:cpu:gpu:memory:disk:battery 2>/dev/null || fastfetch 2>/dev/null || true
+      echo; echo '=== failed units ==='; systemctl --failed --no-legend 2>/dev/null || true
+      echo; echo '=== degraded? ==='; systemctl is-system-running 2>/dev/null || true
+    } > "${out}/summary.txt" 2>&1
+    journalctl -b -p err --no-pager > "${out}/journal-errors.txt" 2>&1 || true
+    journalctl -b -u greetd.service -u niri.service --no-pager > "${out}/session.txt" 2>&1 || true
+    dmesg --level=err,warn > "${out}/dmesg.txt" 2>&1 || dmesg > "${out}/dmesg.txt" 2>&1 || true
+    tar -C "${HOME}" -cf "${out}.tar.zst" --zstd "mercury-report-${stamp}"
+    rm -rf "${out}"
+    echo "Report: ${out}.tar.zst"
+    echo "File at https://github.com/siddhj2206/mercury/issues/new and attach it."
+
 # Verify the booted image's signature against the CI workflow identity
 verify:
     #!/usr/bin/bash

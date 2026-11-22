@@ -7,7 +7,7 @@
 #   /usr/bin/mercury                      `just` front-end (system.just-style
 #                                         recipes in /usr/share/mercury/justfile)
 #   /usr/lib/bootc/kargs.d                fresh-install kernel args
-#   /usr/lib/dracut/dracut.conf.d         initramfs driver omissions (TODO: confirm dracut)
+#   /usr/lib/dracut/dracut.conf.d         initramfs driver omissions (gbm initramfs is dracut)
 #   /usr/lib/environment.d, sysctl.d, journald.conf.d
 #   /usr/libexec/mercury/*                ensure-homes, flatpak-preinstall, update-notify
 #   /usr/lib/systemd/system*              mercury-* units + drop-ins,
