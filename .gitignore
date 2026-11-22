@@ -34,3 +34,9 @@ files/boot-keys/private/*
 
 # scripts/update_sources.py stages patched sources here to check them.
 /.source-check/
+
+# Local build/boot-test outputs
+.build-logs/
+bootable.raw
+bootable.qcow2
+.ovmf-vars.fd

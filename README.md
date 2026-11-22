@@ -47,7 +47,7 @@ the exact `cosign verify` invocation.
 
 ```bash
 just build            # BST build of oci/mercury.bst
-just export default   # export the OCI image locally
+just export            # export the OCI image into podman
 just boot-test        # boot smoke test in an ephemeral VM
 ```
 

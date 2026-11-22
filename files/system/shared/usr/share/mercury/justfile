@@ -84,14 +84,59 @@ report:
     journalctl -b -u greetd.service -u niri.service --no-pager > "${out}/session.txt" 2>&1 || true
     dmesg --level=err,warn > "${out}/dmesg.txt" 2>&1 || dmesg > "${out}/dmesg.txt" 2>&1 || true
     tar -C "${HOME}" -cf "${out}.tar.zst" --zstd "mercury-report-${stamp}"
-    rm -rf "${out}"
     echo "Report: ${out}.tar.zst"
-    echo "File at https://github.com/siddhj2206/mercury/issues/new and attach it."
+    if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
+        echo; head -40 "${out}/summary.txt"
+        read -r -p "File this as a GitHub issue? [y/N] " ans || ans=""
+        if [[ "${ans}" =~ ^[yY] ]]; then
+            read -r -p "Title: " title
+            gist_url="$(gh gist create --desc "mercury-report-${stamp}" "${out}.tar.zst" 2>/dev/null || true)"
+            body="${gist_url:-tarball: ${out}.tar.zst}"
+            body+=$'\n\n```\n'; body+="$(cat "${out}/summary.txt")"; body+=$'\n```'
+            gh issue create --title "${title:-mercury report ${stamp}}" --body "${body}" --label needs-triage
+        fi
+    else
+        echo "File at https://github.com/siddhj2206/mercury/issues/new and attach it."
+    fi
+    rm -rf "${out}"
 
-# Verify the booted image's signature against the CI workflow identity
-verify:
+# Hardware fingerprint for issue comments; shared by confirm and verify.
+[private]
+_hw-fingerprint:
+    #!/usr/bin/bash
+    {
+      echo "### Hardware fingerprint"
+      fastfetch 2>/dev/null | head -10 || true
+      echo
+      echo '```'
+      grep -E 'PRETTY_NAME|IMAGE_VERSION|IMAGE_ID' /etc/os-release 2>/dev/null
+      bootc status --json 2>/dev/null | jq -r '.status.booted.image.imageDigest // empty' | sed 's/^/digest: /'
+      echo '```'
+    }
+
+# Add a hardware fingerprint to an existing issue — same bug, different
+# hardware, no duplicate filing.
+confirm issue:
     #!/usr/bin/bash
     set -euo pipefail
+    just --justfile "{{ justfile() }}" _hw-fingerprint | gh issue comment "{{ issue }}" --body-file -
+    echo "Fingerprint added to issue {{ issue }}"
+
+# `mercury verify` checks the booted image's cosign signature.
+# `mercury verify <issue>` posts a works-on-latest attestation on that
+# issue after a fix ships — evidence, not vibes.
+verify issue="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    if [[ -n "{{ issue }}" ]]; then
+      {
+        echo "### Verified on :latest"
+        bootc status --json 2>/dev/null | jq -r '.status.booted.image.image.image // "unknown"' | sed 's/^/image: /'
+        just --justfile "{{ justfile() }}" _hw-fingerprint
+      } | gh issue comment "{{ issue }}" --body-file -
+      echo "Verification posted to issue {{ issue }}"
+      exit 0
+    fi
     name="$(bootc status --json | jq -r '.status.booted.image.image.image' | sed 's|.*docker://||')"
     digest="$(bootc status --json | jq -r '.status.booted.image.imageDigest // .status.booted.image.image.digest')"
     repo="$(jq -r '."image-name"' /usr/share/mercury/image-info.json)"
