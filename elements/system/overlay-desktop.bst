@@ -7,7 +7,7 @@
 #   ships /etc/greetd/config.toml -> dms-greeter on VT1, a minimal pam.d
 #   built for this base, the preset, and default.target -> graphical)
 #   /etc/skel/.config              niri, dms, ghostty, topgrade user defaults
-#   /etc/xdg/qt6ct, xdg-desktop-portal/niri-portals.conf, gtk-3.0 settings
+#   /etc/xdg/qt6ct and gtk-3.0 settings; niri-portals.conf ships patched in desktop/niri.bst
 #   /usr/lib/environment.d         wayland/Qt/IME session environment
 #   /usr/lib/systemd/user          dms.service.d drop-in, udiskie.service
 #   /usr/lib/tmpfiles.d            seeds /var/lib/flatpak/overrides/global

@@ -1,4 +1,4 @@
-# System info tool; common's ublue-fastfetch wrapper expects it on the image.
+# System info tool (the `fastfetch` users run in a terminal).
 kind: cmake
 
 sources:

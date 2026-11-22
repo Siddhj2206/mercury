@@ -12,7 +12,6 @@ depends:
   - mercury/brew.bst
   - mercury/brew-tarball.bst
 
-  - mercury/uupd.bst
 
   - mercury/ghostty.bst
 
@@ -22,7 +21,6 @@ depends:
   - mercury/tealdeer.bst
   - mercury/ydotool.bst
   - mercury/kanata.bst
-  - mercury/umotd.bst
 
   - mercury/zswap-config.bst
   - mercury/kexec-disable.bst

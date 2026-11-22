@@ -13,7 +13,7 @@ config:
       # does not install them either. Leave procps as their only provider.
       # env stays GNU: pkexec realpath()s its target, and the multicall
       # binary dispatches on the executed path, so a symlinked env breaks
-      # `pkexec -u <user> /usr/bin/env <cmd>` (used by uupd).
+      # `pkexec -u <user> /usr/bin/env <cmd>` (pkexec helper).
       case "${prog}" in
         kill|uptime|env) continue ;;
       esac

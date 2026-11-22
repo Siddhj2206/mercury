@@ -1,34 +1,45 @@
 #!/usr/bin/bash
 # Notify about system updates without nagging (doc/product.md section 10):
-#   - a staged deployment more than STAGED_DAYS newer than the booted one
+#   - a staged image sitting unbooted for more than STAGED_DAYS
 #   - nothing staged and the booted image older than STALE_DAYS, which means
 #     the daily build or the update timer has been failing
-# rpm-ostree reads deployment state over D-Bus, so this needs no root.
-# TODO: rpm-ostree is absent on this base; port to `bootc status --json` or drop.
+# `bootc status` needs no root.
 set -euo pipefail
 
 STAGED_DAYS=7
 STALE_DAYS=14
+NOW="$(date +%s)"
+DAY=86400
 
-status="$(rpm-ostree status --json)"
-booted="$(jq '[.deployments[] | select(.booted)][0].timestamp // 0' <<<"${status}")"
-staged="$(jq '[.deployments[] | select(.staged)][0].timestamp // 0' <<<"${status}")"
-staged_id="$(jq -r '[.deployments[] | select(.staged)][0].checksum // ""' <<<"${status}")"
-# The last staged deployment we told the user about, so each one is announced once.
+# bootc reports image timestamps as RFC3339; epoch() converts to seconds
+# (0 when the field is absent or unparseable).
+epoch() {
+	local ts
+	ts="$(date -d "${1:-}" +%s 2>/dev/null)" || ts=0
+	printf '%d' "${ts:-0}"
+}
+
+status="$(bootc status --json)"
+booted_ts="$(epoch "$(jq -r '.status.booted.image.timestamp // empty' <<<"${status}")")"
+staged_id="$(jq -r '.status.staged.image.imageDigest // .status.staged.image.image.digest // empty' <<<"${status}")"
+staged_ts="$(epoch "$(jq -r '.status.staged.image.timestamp // empty' <<<"${status}")")"
+
+# The last staged image we told the user about, so each one is announced once.
 seen_file="${XDG_STATE_HOME:-${HOME}/.local/state}/mercury/update-notified"
-now="$(date +%s)"
-day=86400
 
-if ((staged > 0)); then
-	if (((staged - booted) / day >= STAGED_DAYS)) && [[ "$(cat "${seen_file}" 2>/dev/null)" != "${staged_id}" ]]; then
+if [[ -n "${staged_id}" ]]; then
+	# staged_ts is the image's build time; a staged image older than
+	# STAGED_DAYS has been sitting unbooted at least that long.
+	staged_age=$((NOW - staged_ts > 0 ? NOW - staged_ts : 0))
+	if ((staged_age / DAY >= STAGED_DAYS)) && [[ "$(cat "${seen_file}" 2>/dev/null)" != "${staged_id}" ]]; then
 		mkdir -p "$(dirname "${seen_file}")"
 		printf '%s\n' "${staged_id}" >"${seen_file}"
 		notify-send --app-name=Mercury --icon=system-software-update \
 			"System update ready" \
 			"An update is staged. It is applied the next time you restart."
 	fi
-elif (((now - booted) / day >= STALE_DAYS)); then
+elif ((booted_ts > 0)) && (((NOW - booted_ts) / DAY >= STALE_DAYS)); then
 	notify-send --app-name=Mercury --icon=dialog-warning --urgency=critical \
 		"System updates are stalled" \
-		"No update has been staged for $(((now - booted) / day)) days. Check 'systemctl status bootc-fetch-apply-updates'."
+		"The booted image is $(((NOW - booted_ts) / DAY)) days old and nothing new is staged. Check 'systemctl status bootc-fetch-apply-updates'."
 fi

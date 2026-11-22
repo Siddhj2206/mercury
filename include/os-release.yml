@@ -75,9 +75,9 @@ config:
         exit 1
       fi
 
-    - mkdir -p "%{install-root}%{datadir}/ublue-os"
+    - mkdir -p "%{install-root}%{datadir}/mercury"
     - |
-      cat >"%{install-root}%{datadir}/ublue-os/image-info.json" <<EOF
+      cat >"%{install-root}%{datadir}/mercury/image-info.json" <<EOF
       {
         "image-name": "${IMAGE_NAME}",
         "image-ref": "${IMAGE_REF}",
