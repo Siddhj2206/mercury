@@ -46,6 +46,9 @@ jobs:
     timeout-minutes: 350
     permissions:
       contents: read
+      # Save job pushes BST cache OCI artifacts to ghcr (public repo:
+      # packages storage is free). Restore needs only read.
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -62,6 +65,14 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
             /usr/local/share/powershell /usr/lib/swift || true
           df -h /
+
+      # OCI cache (ghcr): junction artifacts already pull from gbm.gnome.org;
+      # this cache covers fetched sources and our own elements' CAS.
+      - name: Restore BST cache
+        uses: ./.github/actions/bst-oci-cache
+        with:
+          mode: restore
+          cas: 'true'
 
       - name: Generate BuildStream CI config
         uses: ./.github/actions/generate-bst-ci-config
@@ -91,6 +102,15 @@ jobs:
           path: logs/
           retention-days: 7
           if-no-files-found: ignore
+
+      # Cache writes only from main, on success: PRs and failed builds must
+      # not poison the cache branch tag.
+      - name: Save BST cache
+        if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: ./.github/actions/bst-oci-cache
+        with:
+          mode: save
+          cas: 'true'
 
   # Export, rechunk, lint, and boot-test the image. On pushes to main this
   # same job continues into signing and publishing so the exported image

@@ -1,0 +1,121 @@
+name: BST OCI cache
+description: >-
+  Restore or save the BuildStream cache as OCI artifacts in ghcr
+  (tromso-style). Two artifacts: <image>-bst-sources holds the source
+  cache (small, restored on every job); <image>-bst-cas holds cas/ +
+  artifacts/ — elements built in this repo that gbm.gnome.org cannot
+  serve (Qt, niri, DMS). CAS save runs on main only.
+
+inputs:
+  mode:
+    description: restore or save
+    required: true
+  image:
+    description: Base OCI repo for cache artifacts
+    required: false
+    default: ghcr.io/${{ github.repository_owner }}/mercury-bst
+  ref:
+    description: Branch name used in cache tags
+    required: false
+    default: ${{ github.ref_name }}
+  cas:
+    description: Include cas/ + artifacts/ (large). save on main only.
+    required: false
+    default: 'false'
+  github-token:
+    description: Token with packages:write for save
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install oras
+      uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1.2.4
+
+    - name: Restore BST sources cache
+      if: inputs.mode == 'restore'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        REF: ${{ inputs.ref }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+        mkdir -p "${HOME}/.cache/buildstream"
+        echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+        tmp="$(mktemp -d)"
+        if oras pull "${IMAGE}-sources:${REF}" --output "${tmp}" 2>/dev/null; then
+          tar -xf "${tmp}/sources.tar.zst" -C "${HOME}/.cache/buildstream"
+          echo "Restored BST sources cache (${REF})"
+        elif oras pull "${IMAGE}-sources:main" --output "${tmp}" 2>/dev/null; then
+          tar -xf "${tmp}/sources.tar.zst" -C "${HOME}/.cache/buildstream"
+          echo "Restored BST sources cache (main fallback)"
+        else
+          echo "No BST sources cache yet — cold fetch"
+        fi
+
+    - name: Restore BST CAS cache
+      if: inputs.mode == 'restore' && inputs.cas == 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        REF: ${{ inputs.ref }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+        mkdir -p "${HOME}/.cache/buildstream"
+        echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+        tmp="$(mktemp -d)"
+        for tryref in "${REF}" main; do
+          if oras pull "${IMAGE}-cas:${tryref}" --output "${tmp}" 2>/dev/null; then
+            tar -xf "${tmp}/cas.tar.zst" -C "${HOME}/.cache/buildstream"
+            tar -xf "${tmp}/artifacts.tar.zst" -C "${HOME}/.cache/buildstream"
+            echo "Restored BST CAS cache (${tryref})"
+            exit 0
+          fi
+        done
+        echo "No BST CAS cache — junction artifacts will pull from gbm.gnome.org"
+
+    - name: Save BST sources cache
+      if: inputs.mode == 'save'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        REF: ${{ inputs.ref }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+        cache="${HOME}/.cache/buildstream"
+        [[ -d "${cache}/sources" ]] || { echo "No sources cache to save"; exit 0; }
+        tmp="$(mktemp -d)"
+        tar -C "${cache}" -cf "${tmp}/sources.tar.zst" --zstd sources
+        echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+        dated="${REF}-$(date +%Y%m%d-%H%M)"
+        oras push "${IMAGE}-sources:${dated}" --artifact-type application/vnd.mercury.bst-cache \
+          --annotation org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+          "${tmp}/sources.tar.zst"
+        oras tag "${IMAGE}-sources:${dated}" "${REF}"
+
+    - name: Save BST CAS cache
+      if: inputs.mode == 'save' && inputs.cas == 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        REF: ${{ inputs.ref }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+        cache="${HOME}/.cache/buildstream"
+        [[ -d "${cache}/cas" ]] || { echo "No CAS cache to save"; exit 0; }
+        tmp="$(mktemp -d)"
+        tar -C "${cache}" -cf "${tmp}/cas.tar.zst" --zstd cas
+        [[ -d "${cache}/artifacts" ]] && \
+          tar -C "${cache}" -cf "${tmp}/artifacts.tar.zst" --zstd artifacts || \
+          tar -cf "${tmp}/artifacts.tar.zst" -T /dev/null
+        echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+        dated="${REF}-$(date +%Y%m%d-%H%M)"
+        oras push "${IMAGE}-cas:${dated}" --artifact-type application/vnd.mercury.bst-cache \
+          --annotation org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+          "${tmp}/cas.tar.zst" "${tmp}/artifacts.tar.zst"
+        oras tag "${IMAGE}-cas:${dated}" "${REF}"

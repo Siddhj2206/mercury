@@ -14,6 +14,7 @@ with this page.
 | `scorecard.yml` | Weekly schedule, pushes to `main` | OpenSSF Scorecard supply-chain analysis |
 | `validate-renovate.yml` | Changes to `renovate.json5` | Config validation |
 | `renovate-automerge.yml` | Validate success | Enables auto-merge on `renovate/*` PRs |
+| `cleanup-bst-cache.yml` | Weekly schedule, manual | Deletes dated `mercury-bst-*` OCI cache tags, keeps newest 4 |
 
 ## Stream model
 
@@ -27,11 +28,22 @@ There is no `testing`/`next`/`stable` promotion, no stable release workflow,
 and no rollback workflow: roll back by rebasing to a dated tag or reverting
 the merge.
 
+## BuildStream cache
+
+CI caches BuildStream state as OCI artifacts in ghcr (`mercury-bst-sources`,
+`mercury-bst-cas` packages), because `actions/cache`'s 10 GB cap cannot hold
+a BST CAS. `build.yml` restores both before the build and saves them from
+`main` only on success. `cas/` + `artifacts/` carry the elements this repo
+builds (Qt, niri, DMS); junction artifacts still pull from `gbm.gnome.org`
+on demand. If CI ever exceeds this, the next step up is a private
+`buildbox-casd` remote (`CAS_URL`/`CASD_*` below), not `actions/cache`.
+
 ## Secrets and variables
 
 | Name | Where | Purpose |
 |---|---|---|
 | `MERCURY_SECURE_BOOT_KEY` (secret) | `build.yml` | PEM private key for Secure Boot chain signing, main only |
+| `CACHE_CLEANUP_TOKEN` (secret) | `cleanup-bst-cache.yml` | Classic PAT with `delete:packages`; absent = prune step skips |
 | `CAS_URL` (variable), `CASD_CLIENT_CERT` (variable), `CASD_CLIENT_KEY` (secret) | `generate-bst-ci-config` | Optional private BuildBox CAS / remote execution; absent = local build with public read-only caches |
 
 PR jobs never receive `MERCURY_SECURE_BOOT_KEY` and never push; fork PRs are

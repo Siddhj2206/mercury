@@ -1,0 +1,56 @@
+name: Prune BST OCI cache
+
+# Weekly retention for the tromso-style BST caches in ghcr. Dated tags
+# (main-YYYYMMDD-HHMM) older than KEEP tags are deleted; the rolling
+# `main` / per-branch tags always stay.
+#
+# OWNER TODO: GITHUB_TOKEN cannot delete package versions. Create a
+# classic PAT with `delete:packages` as secret CACHE_CLEANUP_TOKEN,
+# and link the mercury-bst-cas / mercury-bst-sources packages to this
+# repo (oras pushes them with an image.source annotation, so the link
+# forms automatically on first push).
+
+on:
+  schedule:
+    - cron: '17 4 * * 0'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  prune:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Prune dated cache tags
+        env:
+          GH_TOKEN: ${{ secrets.CACHE_CLEANUP_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          KEEP: '4'
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "::notice::CACHE_CLEANUP_TOKEN not set — skipping cache prune"
+            exit 0
+          fi
+          for pkg in mercury-bst-cas mercury-bst-sources; do
+            echo "== ${pkg}"
+            # Version ids per tag, newest first.
+            versions="$(gh api "users/${OWNER}/packages/container/${pkg}/versions?per_page=100" \
+              --jq '.[] | [.id, (.metadata.container.tags // [] | join(","))] | @tsv' || true)"
+            [[ -n "${versions}" ]] || { echo "no versions"; continue; }
+            # Collect deletable dated-tag version ids, keep newest KEEP.
+            i=0
+            while IFS=$'\t' read -r vid tags; do
+              # Only touch versions whose tags are all dated-pattern or untagged.
+              if grep -qE '(^|,)[a-z-]+-[0-9]{8}-[0-9]{4}(,|$)' <<<"${tags}" &&
+                 ! grep -qE '(^|,)(main|master|testing|stable)(,|$)' <<<"${tags}"; then
+                i=$((i + 1))
+                if ((i > KEEP)); then
+                  echo "delete version ${vid} (tags: ${tags})"
+                  gh api --method DELETE "users/${OWNER}/packages/container/${pkg}/versions/${vid}"
+                else
+                  echo "keep version ${vid} (tags: ${tags})"
+                fi
+              fi
+            done <<<"${versions}"
+          done
