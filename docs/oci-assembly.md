@@ -1,0 +1,204 @@
+# OCI Assembly — Required Post-Install Steps
+
+`elements/oci/bluefin-base.bst` assembles the base bootc image from staged
+layers. After all packages are installed it runs several post-install steps
+before calling `build-oci`. **These steps are load-bearing — removing or
+reordering them breaks the deployed image in ways that only appear after a
+`bootc switch`.** `elements/oci/bluefin-nvidia-base.bst` repeats them for the
+NVIDIA image on top of the default base.
+
+## Base image and boot layer
+
+Each published image is a base image plus one boot layer:
+
+| Image | Base | Boot layer | Final element |
+|---|---|---|---|
+| default, gaming | `oci/bluefin-base.bst` | `oci/layers/boot.bst` | `oci/bluefin.bst` |
+| NVIDIA, NVIDIA gaming | `oci/bluefin-nvidia-base.bst` | `oci/layers/bluefin-nvidia-boot.bst` | `oci/bluefin-nvidia.bst` |
+
+The boot layer holds everything that changes with `secure_boot_signing`: the
+kernel image and modules (NVIDIA modules too), the initramfs, the `depmod`
+index, and in signed images the shim chain, signed EFI binaries, Secure Boot
+tools and the `lockdown=integrity` karg. The base never depends on the option,
+so it has the same cache key in `build.yml` and in the signing pass, which pulls
+it from the cache instead of rebuilding it. `just bst show` with and without
+`-o secure_boot_signing true` must report the same key for both base elements
+and their compose and chunkah elements.
+
+Invariants, each enforced by a build failure:
+
+- **No kernel modules or depmod configuration in the base.** The base elements
+  fail on any file under `/usr/lib/modules`, `/usr/lib/depmod.d` or
+  `/etc/depmod.d`. A module in the base would skip signing and `depmod`, which
+  breaks `lockdown=integrity` and Easy Anti-Cheat; the boot layer's `depmod`
+  cannot see base configuration. Elements that install modules need a
+  `kernel-modules` split rule that the base compose excludes (see
+  `bluefin-nvidia/nvidia-drivers.bst` and `bluefin-nvidia/nvidia-kernel-modules.bst`).
+- **The boot layer carries only its own files.** Its stack may only reach
+  artifacts without runtime dependencies; use a filter to drop them, as
+  `bluefin/secure-boot-tools-files.bst` does. The base must contain what those
+  programs need, and the final element fails when a `--require-base-path` is
+  missing.
+- **Signed boot layers verify their signatures.** `include/boot-layer.yml`
+  checks the kernel image with `sbverify` and every module's signer with
+  `modinfo` against the Dakota certificate, and requires the lockdown karg in
+  signed layers and forbids it in unsigned ones. Easy Anti-Cheat for Linux v2
+  rejects a single unsigned loaded module, and `lockdown=integrity` refuses to
+  load one.
+- **The boot layer only adds allowed paths.** The final elements append it with
+  `scripts/oci_append_layer.py` (build-oci's parent mode writes whiteouts for
+  every parent file missing from each directory the new layer touches) and
+  bind ownership with `ownership_metadata.py finalize-overlay`. That rejects
+  whiteouts, paths outside the `--allow-prefix` list, metadata changes to
+  parent directories other than mtime, and any change to a base path the layer
+  does not contain. Keep the list exact: base post-install steps never see the
+  boot layer, so nothing that needs sysusers, `ldconfig`, schemas or presets
+  may live there.
+
+## Chunkah component ownership metadata
+
+This metadata assigns files to Chunkah components and update intervals; it is
+not Unix UID/GID ownership. The local `chunkah-ownership` plugin produces only
+metadata, not a composed filesystem. `oci/chunkah-metadata-tool.bst` supplies the
+finalizer to the OCI assembly sandbox without installing it into the image.
+
+`oci/chunkah/*.bst` stage the already-built corresponding compose/filter
+artifact and attribute its surviving paths from the original component
+manifests; they never replay integration into a second root. Production
+filesystem layers remain ordinary `kind: compose` elements. The OCI scripts
+check basis path/type identity, preserve known owners through later integration,
+and assign `dakota.integration` only to otherwise unowned files before copying
+`.dakota/ownership-final.json` beside the OCI layout. The final snapshot is read
+back from the completed uncompressed OCI archive, after `build-oci` has applied
+its metadata normalization, and records content, uid/gid, complete mode/mtime,
+xattrs (including `security.capability`), device major/minor numbers, and hardlink
+topology.
+
+`just export` verifies the known Podman squash transition (the empty `/sys`
+mountpoint), applies only the two export-time `os-release` substitutions while
+preserving all other metadata, then rebinds the exact mounted root to its
+immutable image ID. It writes a fakecap TSV under
+`.build-ownership/<immutable-image-id>/`. `just chunkify` resolves the tag once
+and uses that immutable ID for both config and mounting. It rejects a stale or
+modified TSV by comparing its exact bytes with the image-bound sidecar, then
+uses a private validated copy for the existing physical overlay/xattr
+restoration. The sidecar is outside the OCI root and is never shipped to image
+consumers. The validator uses the same privilege as Podman so root-only files
+are checked; generated metadata is returned to the invoking user's ownership.
+
+### Chunkah output and local image storage
+
+`just chunkify` writes an uncompressed OCI directory using Chunkah v0.6.0's
+`--output oci:PATH`, then imports it into the same Podman store used for export.
+This avoids wrapping the layer blobs in an outer archive and piping that
+archive through `podman load`, an [upstream-documented I/O bottleneck](https://github.com/coreos/chunkah/issues/137).
+The 120-layer limit, ownership mapping and final registry zstd compression are
+unchanged.
+
+Output shares the overlay scratch-filesystem selection (`/var/tmp` or
+`/var/lib/containers`), not the default `/tmp`. Allow space for another full
+uncompressed image alongside overlay copy-ups and the imported result. Both
+the output directory and overlay scratch are cleaned up on success or failure;
+busy overlay mounts are preserved and reported rather than deleted.
+
+Export, lint, audits and publication already use the rootful Podman store, so
+chunkify no longer makes an unconditional copy into the invoking user's
+rootless store. Local callers needing that second copy can opt in explicitly:
+
+```sh
+BUILD_CHUNKIFY_COPY_TO_USER=1 just chunkify localhost/dakota:latest
+```
+
+The opt-in only applies when the recipe invokes sudo; a root caller already
+uses one store. Image signing, provenance and stream promotion are unchanged.
+
+### Upstream manifest interface
+
+Chunkah v0.6.0 supports RPM and ALPM package databases, plus xattr-based
+components, but has no BuildStream or generic file-manifest backend. Dakota
+therefore uses its supported xattr interface rather than inventing a package
+database. The physical overlay is needed because Chunkah's raw xattr syscalls
+bypass the `LD_PRELOAD` fakecap shim.
+
+In [coreos/chunkah#113](https://github.com/coreos/chunkah/issues/113), the
+maintainer proposed an input manifest for `build`, potentially paired with a
+`prescan` command. The earlier
+[path-prefix map](https://github.com/coreos/chunkah/pull/111) and
+[exact filemap](https://github.com/coreos/chunkah/pull/112) prototypes were closed
+without merging; closing those discussions did not ship a replacement interface.
+
+Continue using the pinned xattr implementation until an upstream manifest
+interface is available and validated. Revisit that interface before expanding
+the delivery adapter: it could replace physical xattr restoration and its
+overlay, but would not derive BuildStream ownership for us. Exact filesystem
+validation is a separate Dakota design choice, not a Chunkah requirement.
+
+### Chunkah metadata validation
+
+The offline metadata, recipe failure-path and next-sync regression tests run
+with `just check-publish-workflow` (also part of `just validate`). The explicit
+export and cold-cache tests use `BST_RUNNER`, an executable checkout adapter,
+without rewriting the production Justfile. The runner receives the arguments
+to `just bst` unchanged and supplies its own BuildStream flags/environment.
+
+- `just test-ownership-buildstream` exercises the companion plugin with real,
+  isolated BuildStream artifacts. Run it when changing the plugin: it covers
+  local composition and a parent build inheriting a remotely cached companion
+  with `cache.storage-service` enabled. The latter proves that absent metadata
+  blobs are fetched without downloading rootfs payloads. It uses a disposable
+  local CAS server, not shared caches or remote execution workers. Graph-only
+  validation and cold export of already-built images do not cover this path.
+- `just test-ownership-export` exercises the real export recipe with Podman and
+  sudo inside a disposable container, substituting only BST checkout. It needs
+  locally cached bst2 and Fedora 42 images and never changes host sudo policy.
+- `just test-ownership-cold-cache DEFAULT_REF NVIDIA_REF OUTPUT_DIR` tests exact
+  `project/element/64-hex-key` artifacts through a disposable local CAS server,
+  an empty receiver cache and isolated export/chunkify image storage. The sender
+  uses a read-only mount of `~/.cache/buildstream` with disposable overlay writes;
+  the receiver cannot access that cache. No shared remote is written and no BST
+  build runs. Requires a cached bst2 runner, host GCC and 80 GiB free under home;
+  Chunkah may be pulled at its existing pinned digest. Only temporary resources
+  are removed; logs and sidecar evidence remain in the new output directory.
+  Diagnostic failures do not skip cleanup. If a temporary container cannot be
+  removed, its storage is preserved and the test fails with the resource ID/path.
+- `just ownership-layer-compare OLD_LAYOUT NEW_LAYOUT OUTPUT_JSON` measures
+  layer reuse and new compressed bytes without publishing images. Export both
+  layouts with the same compression settings; uncompressed/mixed inputs fail.
+
+Compare migration churn (old/new ownership on the same root) separately from
+steady-state updates (generated ownership across builds). Repeated exports may
+change the Podman-created `/sys` directory's timestamp even with no source
+changes, so layer reuse alone is not a test of source reproducibility. Transfer
+estimates include new layer blobs, config and manifest, not HTTP overhead or
+client-specific partial pulls.
+
+| Step | Command | Why |
+|---|---|---|
+| System users | `systemd-sysusers --root /layer` | Creates system accounts (e.g. `gdm`) needed at runtime. Without this, GDM cannot start a greeter session. |
+| GLib schemas | `glib-compile-schemas /layer/usr/share/glib-2.0/schemas` | Compiles dconf schema cache; missing cache breaks settings reads. |
+| dconf DB | `dconf update /layer/etc/dconf/db` | Writes compiled dconf database; required for GNOME defaults. |
+| **Linker cache** | **`ldconfig -r /layer`** | **Rebuilds `/etc/ld.so.cache` for the sysroot. Without this, any library SO version bump leaves the deployed system with a stale linker cache after `bootc switch`, causing `dlopen()` failures on first boot.** |
+
+## The ldconfig rule
+
+Every time a library with a versioned SO name is bumped (Mesa `libgallium-X.Y.Z.so`,
+Pipewire `libpipewire-X.Y.so`, etc.), the linker cache in the *running* system's
+`/etc/ld.so.cache` still points at the old SO name after `bootc switch`. The new
+image's `/usr` has the new SO, but `/etc/ld.so.cache` is not automatically
+regenerated by bootc's 3-way merge.
+
+`ldconfig -r /layer` in the image build writes a correct cache into the image's
+`/etc/ld.so.cache`. On deployment, bootc's merge adopts the image's version of
+this file, so the deployed system starts with a correct cache.
+
+**Real regression (PR #497):** The junction bump upgraded Mesa 26.0.5 → 26.0.6.
+`libgallium-26.0.5.so` was replaced by `libgallium-26.0.6.so`. `dri_gbm.so` has
+no RPATH and relies entirely on the linker cache. After `bootc switch`, the stale
+cache caused GNOME Shell to report `Failed to open gpu '/dev/dri/card1': No such
+file or directory` / `No GPUs found` on every boot — GDM looped and never showed
+a login screen. Fix: `sudo ldconfig` on the affected system, and this `ldconfig
+-r /layer` step in the build to prevent recurrence.
+
+> If you are adding a new post-install step to `elements/oci/bluefin-base.bst`, insert
+> it **before** `ldconfig -r /layer` so the linker cache reflects the final
+> installed state.

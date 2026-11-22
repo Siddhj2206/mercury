@@ -1,0 +1,245 @@
+name: Rollback :stable
+
+# One-button rollback for all four ghcr.io/projectbluefin/dakota{,-nvidia}{,-gaming}:stable
+# tags when a promoted image is bad. Mirrors the publish/promotion supply-chain checks:
+#   1. Inspect the target SHA-pinned images exist.
+#   2. cosign verify them against the anchored publish.yml identity.
+#   3. skopeo copy --preserve-digests --all the verified digests into :stable.
+#
+# workflow_dispatch only. Defaults to dry_run=true — humans must opt-in to
+# moving tags. Concurrency group is shared with execute-release so this cannot
+# race with a promotion in flight.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: 'SHA of the previously-promoted commit to roll back to. Must be a commit that previously held :stable. Find via: gh run list --workflow execute-release.yml --status success'
+        required: true
+        type: string
+      reason:
+        description: 'Human reason for rollback. Logged in step summary and GitHub Release notes.'
+        required: true
+        type: string
+      dry_run:
+        description: 'Inspect + cosign verify only, do not move tags. Defaults to true — opt out only when ready to roll back live.'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dakota-execute-release
+  cancel-in-progress: false
+
+env:
+  # Promotion moves all four variants as a set, so rollback does too.
+  IMAGES: dakota dakota-nvidia dakota-gaming dakota-nvidia-gaming
+
+jobs:
+  verify:
+    name: Verify rollback target
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      digests: ${{ steps.digests.outputs.digests }}
+    env:
+      TARGET_SHA: ${{ inputs.target_sha }}
+      COSIGN_IDENTITY_REGEXP: ^https://github\.com/projectbluefin/dakota/\.github/workflows/publish\.yml@refs/heads/(testing|gh-readonly-queue/testing/.+)$
+      COSIGN_ISSUER: https://token.actions.githubusercontent.com
+    steps:
+      - name: Install skopeo
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq skopeo
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Inspect SHA-pinned images and capture digests
+        id: digests
+        run: |
+          set -euo pipefail
+          DIGESTS='{}'
+          for image in $IMAGES; do
+            if ! skopeo inspect --no-tags \
+                "docker://ghcr.io/projectbluefin/${image}:${TARGET_SHA}" > "/tmp/${image}.json" 2>&1; then
+              echo "::error::ghcr.io/projectbluefin/${image}:${TARGET_SHA} not found. All four variants must exist at the target SHA; refusing to roll back a partial set."
+              cat "/tmp/${image}.json"
+              exit 1
+            fi
+            digest=$(jq -r '.Digest' "/tmp/${image}.json")
+            if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+              echo "::error::Failed to resolve digest for ${image}:${TARGET_SHA}"
+              exit 1
+            fi
+            DIGESTS=$(jq -c --arg image "$image" --arg digest "$digest" '. + {($image): $digest}' <<< "$DIGESTS")
+            echo "${image}:${TARGET_SHA} → ${digest}"
+          done
+          echo "digests=${DIGESTS}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify cosign signatures
+        env:
+          DIGESTS: ${{ steps.digests.outputs.digests }}
+        run: |
+          set -euo pipefail
+          for image in $IMAGES; do
+            digest=$(jq -r --arg image "$image" '.[$image]' <<< "$DIGESTS")
+            cosign verify \
+              --certificate-identity-regexp "$COSIGN_IDENTITY_REGEXP" \
+              --certificate-oidc-issuer "$COSIGN_ISSUER" \
+              "ghcr.io/projectbluefin/${image}@${digest}"
+          done
+
+      - name: Verify summary
+        env:
+          DIGESTS: ${{ steps.digests.outputs.digests }}
+          REASON: ${{ inputs.reason }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          {
+            echo "## Rollback target verified"
+            echo ""
+            echo "- **target_sha:** \`${TARGET_SHA}\`"
+            echo "- **reason:** ${REASON}"
+            echo "- **dry_run:** \`${DRY_RUN}\`"
+            for image in $IMAGES; do
+              echo "- **${image} digest:** \`$(jq -r --arg image "$image" '.[$image]' <<< "$DIGESTS")\`"
+            done
+            echo ""
+            echo "All cosign signatures verified against \`publish.yml@refs/heads/testing\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    name: Move :stable tags
+    needs: verify
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      DIGESTS: ${{ needs.verify.outputs.digests }}
+    steps:
+      - name: Install skopeo
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq skopeo
+
+      - name: Login to GHCR (skopeo)
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$GH_TOKEN" | skopeo login ghcr.io --username "$GH_ACTOR" --password-stdin
+
+      # Copy by the digest cosign verified, not the SHA tag, so a tag moved
+      # after verification cannot change what lands on :stable.
+      - name: Revert :stable tags to the verified digests
+        run: |
+          set -euo pipefail
+          for image in $IMAGES; do
+            digest=$(jq -r --arg image "$image" '.[$image]' <<< "$DIGESTS")
+            skopeo copy --preserve-digests --all \
+              "docker://ghcr.io/projectbluefin/${image}@${digest}" \
+              "docker://ghcr.io/projectbluefin/${image}:stable"
+          done
+
+      - name: Verify reverted :stable digests match target
+        run: |
+          set -euo pipefail
+          for image in $IMAGES; do
+            expected=$(jq -r --arg image "$image" '.[$image]' <<< "$DIGESTS")
+            now=$(skopeo inspect --no-tags "docker://ghcr.io/projectbluefin/${image}:stable" | jq -r .Digest)
+            if [ "$now" != "$expected" ]; then
+              echo "::error::${image}:stable digest=$now, expected $expected"
+              exit 1
+            fi
+          done
+          echo "All four :stable tags now point at the verified target digests."
+
+  record:
+    name: Record rollback in audit trail
+    needs: [verify, rollback]
+    if: ${{ always() && !inputs.dry_run && needs.rollback.result == 'success' }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TARGET_SHA: ${{ inputs.target_sha }}
+      REASON: ${{ inputs.reason }}
+      ACTOR: ${{ github.actor }}
+      DIGESTS: ${{ needs.verify.outputs.digests }}
+    steps:
+      - name: Compose rollback notes
+        id: notes
+        run: |
+          set -euo pipefail
+          TS=$(date -u +%s)
+          TS_HUMAN=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          TAG="rollback-${TARGET_SHA}-${TS}"
+          {
+            echo "# :stable rollback"
+            echo ""
+            echo "**Actor:** @${ACTOR}"
+            echo "**Timestamp:** ${TS_HUMAN}"
+            echo "**Target SHA:** \`${TARGET_SHA}\`"
+            echo ""
+            echo "## Reason"
+            echo ""
+            echo "${REASON}"
+            echo ""
+            echo "## Reverted digests"
+            echo ""
+            echo "| Image | Tag | Digest |"
+            echo "|---|---|---|"
+            for image in $IMAGES; do
+              echo "| ${image} | :stable | \`$(jq -r --arg image "$image" '.[$image]' <<< "$DIGESTS")\` |"
+            done
+            echo ""
+            echo "All digests were cosign-verified against \`publish.yml@refs/heads/testing\` before tags were moved."
+          } > rollback-notes.md
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "ts_human=${TS_HUMAN}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release documenting rollback
+        env:
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.notes.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # The release is tagged at the target_sha so the audit trail points
+          # at the commit whose image now serves :stable. Marked prerelease so
+          # it does not displace the most-recent stable release listing.
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --target "$TARGET_SHA" \
+            --title "Rollback :stable → ${TARGET_SHA}" \
+            --notes-file rollback-notes.md \
+            --prerelease
+
+      - name: Step summary
+        env:
+          TAG: ${{ steps.notes.outputs.tag }}
+          TS_HUMAN: ${{ steps.notes.outputs.ts_human }}
+        run: |
+          {
+            echo "## :stable rolled back"
+            echo ""
+            echo "- **target_sha:** \`${TARGET_SHA}\`"
+            echo "- **actor:** @${ACTOR}"
+            echo "- **timestamp:** ${TS_HUMAN}"
+            echo "- **reason:** ${REASON}"
+            for image in $IMAGES; do
+              echo "- **${image} digest:** \`$(jq -r --arg image "$image" '.[$image]' <<< "$DIGESTS")\`"
+            done
+            echo "- **audit release:** \`${TAG}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
