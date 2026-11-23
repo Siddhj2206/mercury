@@ -95,9 +95,11 @@ runs:
         echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
         dated="${REF}-$(date +%Y%m%d-%H%M)"
         push() { for i in 1 2 3; do oras push "$@" && return 0; sleep 10; done; return 1; }
+        # oras >=1.3 rejects absolute file paths; push from inside tmp.
+        cd "${tmp}"
         push "${IMAGE}-sources:${dated}" --artifact-type application/vnd.mercury.bst-cache \
           --annotation org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
-          "${tmp}/sources.tar.zst"
+          sources.tar.zst
         oras tag "${IMAGE}-sources:${dated}" "${REF}"
 
     - name: Save BST CAS cache
@@ -119,7 +121,9 @@ runs:
         echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
         dated="${REF}-$(date +%Y%m%d-%H%M)"
         push() { for i in 1 2 3; do oras push "$@" && return 0; sleep 10; done; return 1; }
+        # oras >=1.3 rejects absolute file paths; push from inside tmp.
+        cd "${tmp}"
         push "${IMAGE}-cas:${dated}" --artifact-type application/vnd.mercury.bst-cache \
           --annotation org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
-          "${tmp}/cas.tar.zst" "${tmp}/artifacts.tar.zst"
+          cas.tar.zst artifacts.tar.zst
         oras tag "${IMAGE}-cas:${dated}" "${REF}"
