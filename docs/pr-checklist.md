@@ -35,7 +35,7 @@
 
 - [ ] `ldconfig -r /layer` present after `dconf update`, before `build-oci` — see [oci-assembly.md](oci-assembly.md)
 
-## Element changes (`elements/mercury/`)
+## Element changes (`elements/{mercury,system,desktop}/`)
 
 - [ ] `mkdir -p` before any `ln -sf`
 - [ ] Binary elements: `ref:` pinned to tag/commit, not a branch
