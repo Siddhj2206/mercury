@@ -14,5 +14,7 @@ kind: stack
 depends:
 - freedesktop-sdk.bst:bootstrap/bash.bst
 - freedesktop-sdk.bst:bootstrap/coreutils.bst
+# findutils: overlay elements walk install trees with `find`.
+- freedesktop-sdk.bst:components/findutils.bst
 # 26.08 coreutils links libgcc_s.so.1; stage its provider too.
 - freedesktop-sdk.bst:components/gcc-libs.bst
