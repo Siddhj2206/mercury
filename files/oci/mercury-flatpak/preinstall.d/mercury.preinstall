@@ -21,9 +21,6 @@ Branch=stable
 [Flatpak Preinstall org.gnome.Calculator]
 Branch=stable
 
-[Flatpak Preinstall org.gnome.baobab]
-Branch=stable
-
 [Flatpak Preinstall org.gnome.clocks]
 Branch=stable
 
