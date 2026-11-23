@@ -13,6 +13,10 @@ inputs:
     description: Publish built artifacts and fetched sources during the BuildStream build.
     required: false
     default: 'true'
+  cas-url:
+    description: Optional private BuildBox CAS/remote-execution URL (vars.CAS_URL).
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -22,7 +26,7 @@ runs:
       env:
         ENABLE_REMOTE_EXECUTION: ${{ inputs.enable-remote-execution }}
         ENABLE_PUSH: ${{ inputs.enable-push }}
-        CAS_URL: ${{ vars.CAS_URL }}
+        CAS_URL: ${{ inputs.cas-url }}
       run: |
         set -euo pipefail
         WORKSPACE_ROOT="${GITHUB_WORKSPACE:-$PWD}"

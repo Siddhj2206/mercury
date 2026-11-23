@@ -83,6 +83,7 @@ jobs:
         with:
           # OWNER TODO: flip to "true" after deploying a BuildBox remote and
           # setting CAS_URL / CASD_CLIENT_CERT / CASD_CLIENT_KEY.
+          cas-url: ${{ vars.CAS_URL }}
           enable-remote-execution: "false"
           enable-push: "false"
 
@@ -152,6 +153,7 @@ jobs:
           CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
           CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
         with:
+          cas-url: ${{ vars.CAS_URL }}
           enable-remote-execution: 'false'
           enable-push: 'false'
 
