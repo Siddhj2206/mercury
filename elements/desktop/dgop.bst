@@ -23,6 +23,10 @@ build-depends:
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
+variables:
+  # Stages a prebuilt binary; the strip tool is not in this sandbox.
+  strip-binaries: ""
+
 config:
   install-commands:
   - gunzip -c bin/dgop-linux-*.gz > dgop

@@ -41,6 +41,10 @@ depends:
 - desktop/niri.bst
 - desktop/greetd.bst
 
+variables:
+  # Stages a prebuilt binary; the strip tool is not in this sandbox.
+  strip-binaries: ""
+
 config:
   install-commands:
   - gunzip -c bin/dms-greeter-linux-*.gz > dms-greeter
