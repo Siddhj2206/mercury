@@ -103,10 +103,11 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # Cache writes only from main, on success: PRs and failed builds must
-      # not poison the cache branch tag.
+      # Cache writes only from main, never from PRs. Save even on failure:
+      # a cold v3 build can exceed the 330-min cap, and banking partial CAS
+      # is what lets the next run resume instead of restarting.
       - name: Save BST cache
-        if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: "github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !cancelled()"
         uses: ./.github/actions/bst-oci-cache
         with:
           mode: save
