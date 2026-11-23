@@ -17,6 +17,7 @@ depends:
 
 config:
   install-commands:
+  - mkdir -p "%{install-root}%{prefix}/include"
   - cp -a include/CLI "%{install-root}%{prefix}/include/"
   - install -Dm644 LICENSE "%{install-root}%{datadir}/licenses/cli11/LICENSE"
   - "%{install-extra}"
