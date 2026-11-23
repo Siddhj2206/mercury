@@ -13,7 +13,8 @@ inputs:
   image:
     description: Base OCI repo for cache artifacts
     required: false
-    default: ghcr.io/${{ github.repository_owner }}/mercury-bst
+    # OCI refs must be lowercase; repository_owner preserves display-case.
+    default: ghcr.io/siddhj2206/mercury-bst
   ref:
     description: Branch name used in cache tags
     required: false
