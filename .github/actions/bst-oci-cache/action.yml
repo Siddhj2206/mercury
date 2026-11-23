@@ -45,10 +45,11 @@ runs:
         mkdir -p "${HOME}/.cache/buildstream"
         echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
         tmp="$(mktemp -d)"
-        if oras pull "${IMAGE}-sources:${REF}" --output "${tmp}" 2>/dev/null; then
+        pull() { for i in 1 2 3; do oras pull "$1" --output "${tmp}" && return 0; sleep 5; done; return 1; }
+        if pull "${IMAGE}-sources:${REF}" 2>/dev/null; then
           tar -xf "${tmp}/sources.tar.zst" -C "${HOME}/.cache/buildstream"
           echo "Restored BST sources cache (${REF})"
-        elif oras pull "${IMAGE}-sources:main" --output "${tmp}" 2>/dev/null; then
+        elif pull "${IMAGE}-sources:main" 2>/dev/null; then
           tar -xf "${tmp}/sources.tar.zst" -C "${HOME}/.cache/buildstream"
           echo "Restored BST sources cache (main fallback)"
         else
@@ -67,8 +68,9 @@ runs:
         mkdir -p "${HOME}/.cache/buildstream"
         echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
         tmp="$(mktemp -d)"
+        pull() { for i in 1 2 3; do oras pull "$1" --output "${tmp}" && return 0; sleep 5; done; return 1; }
         for tryref in "${REF}" main; do
-          if oras pull "${IMAGE}-cas:${tryref}" --output "${tmp}" 2>/dev/null; then
+          if pull "${IMAGE}-cas:${tryref}" 2>/dev/null; then
             tar -xf "${tmp}/cas.tar.zst" -C "${HOME}/.cache/buildstream"
             tar -xf "${tmp}/artifacts.tar.zst" -C "${HOME}/.cache/buildstream"
             echo "Restored BST CAS cache (${tryref})"
@@ -92,7 +94,8 @@ runs:
         tar -C "${cache}" -cf "${tmp}/sources.tar.zst" --zstd sources
         echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
         dated="${REF}-$(date +%Y%m%d-%H%M)"
-        oras push "${IMAGE}-sources:${dated}" --artifact-type application/vnd.mercury.bst-cache \
+        push() { for i in 1 2 3; do oras push "$@" && return 0; sleep 10; done; return 1; }
+        push "${IMAGE}-sources:${dated}" --artifact-type application/vnd.mercury.bst-cache \
           --annotation org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
           "${tmp}/sources.tar.zst"
         oras tag "${IMAGE}-sources:${dated}" "${REF}"
@@ -115,7 +118,8 @@ runs:
           tar -cf "${tmp}/artifacts.tar.zst" -T /dev/null
         echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
         dated="${REF}-$(date +%Y%m%d-%H%M)"
-        oras push "${IMAGE}-cas:${dated}" --artifact-type application/vnd.mercury.bst-cache \
+        push() { for i in 1 2 3; do oras push "$@" && return 0; sleep 10; done; return 1; }
+        push "${IMAGE}-cas:${dated}" --artifact-type application/vnd.mercury.bst-cache \
           --annotation org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
           "${tmp}/cas.tar.zst" "${tmp}/artifacts.tar.zst"
         oras tag "${IMAGE}-cas:${dated}" "${REF}"

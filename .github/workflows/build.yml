@@ -64,6 +64,7 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
             /usr/local/share/powershell /usr/lib/swift || true
+          docker image prune -af 2>/dev/null || true
           df -h /
 
       # OCI cache (ghcr): junction artifacts already pull from gbm.gnome.org;
@@ -142,6 +143,8 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
             /usr/local/share/powershell /usr/lib/swift || true
+          docker image prune -af 2>/dev/null || true
+          df -h /
 
       - name: Generate BST fetch config
         uses: ./.github/actions/generate-bst-ci-config
@@ -205,8 +208,10 @@ jobs:
       # first use, which is slow; drop these two steps if that gets annoying.
       - name: Install VM tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 virtiofsd
+          for i in 1 2 3; do
+            sudo apt-get update && sudo apt-get install -y qemu-system-x86 virtiofsd && break
+            [ "$i" = 3 ] && exit 1 || sleep 10
+          done
 
       - name: Boot-test image in an ephemeral VM
         env:
