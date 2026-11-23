@@ -75,6 +75,9 @@ jobs:
         with:
           mode: restore
           cas: 'true'
+          # PAT: GITHUB_TOKEN cannot read user-namespace packages even
+          # when repo-linked; falls back to github.token if unset.
+          github-token: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
 
       - name: Generate BuildStream CI config
         uses: ./.github/actions/generate-bst-ci-config
@@ -115,6 +118,7 @@ jobs:
         with:
           mode: save
           cas: 'true'
+          github-token: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
 
   # Export, rechunk, lint, and boot-test the image. On pushes to main this
   # same job continues into signing and publishing so the exported image
