@@ -31,7 +31,7 @@ runs:
   using: composite
   steps:
     - name: Install oras
-      uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1.2.4
+      uses: oras-project/setup-oras@ac735097e22fe643015b0d19645f7c9a69942128 # v2.0.4
 
     - name: Restore BST sources cache
       if: inputs.mode == 'restore'
