@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - "elements/**"
+      - "files/**"
       - "plugins/**"
       - "patches/**"
       - "Justfile"
