@@ -15,6 +15,10 @@ build-depends:
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
+variables:
+  # Header-only: nothing to strip.
+  strip-binaries: ""
+
 config:
   install-commands:
   - mkdir -p "%{install-root}%{prefix}/include"
