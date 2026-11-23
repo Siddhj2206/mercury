@@ -1,3 +1,9 @@
+<p align="center"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/mercury-wordmark-on-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo/mercury-wordmark-on-light.svg">
+  <img src="assets/logo/mercury-wordmark.svg" alt="mercury" width="480">
+</picture></p>
+
 # Mercury
 
 A personal bootc OCI desktop: **niri** + **DankMaterialShell**, assembled

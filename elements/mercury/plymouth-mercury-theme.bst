@@ -16,12 +16,14 @@ variables:
 
 config:
   install-commands:
-    # No boot-logo watermark is shipped yet; the spinner theme stays
-    # unbranded until files/plymouth gains a mercury-boot-logo.png.
     - install -Dm644 plymouthd.defaults "%{install-root}%{datadir}/plymouth/plymouthd.defaults"
+    # spinner theme displays watermark.png as the boot logo.
+    - install -Dm644 mercury-boot-logo.png "%{install-root}%{datadir}/plymouth/themes/spinner/watermark.png"
+    - install -Dm644 mercury-boot-logo.png "%{install-root}%{datadir}/pixmaps/mercury-boot-logo.png"
     - "%{install-extra}"
 
 public:
   bst:
     overlap-whitelist:
       - "%{datadir}/plymouth/plymouthd.defaults"
+      - "%{datadir}/plymouth/themes/spinner/watermark.png"
