@@ -22,7 +22,7 @@ to the dakota maintainers.
 - niri scrollable-tiling Wayland compositor with DankMaterialShell on top
 - System libraries and toolchain from freedesktop-sdk, desktop stack from
   gnome-build-meta — no RPMs, no Containerfile, no dnf
-- x86-64-v3 optimized builds for modern CPUs
+- Baseline x86-64 builds that reuse GNOME OS and freedesktop-sdk artifacts
 - systemd-boot as the bootloader, with optional Secure Boot signing
 - Atomic updates via `bootc` — rebase, rollback, and pin from the registry
 

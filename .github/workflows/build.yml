@@ -46,7 +46,8 @@ jobs:
       (contains(github.event.pull_request.labels.*.name, 'build') &&
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-26.04
-    timeout-minutes: 350
+    # GitHub caps hosted jobs at 360 min.
+    timeout-minutes: 355
     permissions:
       contents: read
       # Save job pushes BST cache OCI artifacts to ghcr (public repo:
@@ -100,7 +101,9 @@ jobs:
           set -o pipefail
           mkdir -p logs
           just bst build oci/mercury.bst 2>&1 | tee logs/bst-console.log
-        timeout-minutes: 330
+        # Leaves ~45 min of the job budget for Save BST cache after the
+        # ~15 min restore; a timed-out build must still bank its CAS.
+        timeout-minutes: 290
 
       - name: Upload build logs
         if: always()
@@ -112,7 +115,7 @@ jobs:
           if-no-files-found: ignore
 
       # Cache writes only from main, never from PRs. Save even on failure:
-      # a cold v3 build can exceed the 330-min cap, and banking partial CAS
+      # a cold build can exceed the 290-min cap, and banking partial CAS
       # is what lets the next run resume instead of restarting.
       - name: Save BST cache
         if: "github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !cancelled()"

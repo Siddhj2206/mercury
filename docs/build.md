@@ -13,20 +13,19 @@
 
 ### CPU baseline
 
-The x86_64 image requires **x86-64-v3** (Intel Haswell Core or newer,
-AMD Excavator or newer, including all Ryzen). Check the exact CPU model: many
-Pentium, Celeron, and older Atom processors lack the required features even
-when newer than Haswell. VMs must expose v3 features to the guest.
+The x86_64 image targets the **baseline x86-64** ISA. `project.conf` owns the
+default (`x86_64_v3: false`) for both direct BuildStream use and `just`; CI
+build, export, and validation use that same default.
 
-`project.conf` owns the default for both direct BuildStream use and `just`;
-CI build, export, and validation use that same default. The option is forwarded
-only on x86_64 to GNOME Build Meta and freedesktop-sdk. Expect a substantial
-rebuild when switching from baseline artifacts to v3.
+Baseline is a cache constraint, not a preference: gnome-build-meta CI and
+freedesktop-sdk publish only baseline x86_64 artifacts to
+`gbm.gnome.org` and `cache.freedesktop-sdk.io`. The `x86_64_v3` option is
+forwarded to both junctions, so enabling it changes every cache key and
+rebuilds both stacks from bootstrap (LLVM alone takes hours), which cannot fit
+in a hosted CI job without a private remote-execution cache.
 
-For a local baseline x86_64 build, use
-`BST_FLAGS="-o x86_64_v3 false" just build` and keep that option for
-subsequent export/checkout commands. Direct BuildStream accepts
-`bst -o x86_64_v3 false ...` as well.
+For a local v3 build, use `BST_FLAGS="-o x86_64_v3 true" just build` and keep
+that option for subsequent export/checkout commands.
 
 See [BuildStream project options](https://docs.buildstream.build/master/format_project.html#options).
 

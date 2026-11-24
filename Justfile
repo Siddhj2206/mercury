@@ -28,8 +28,8 @@ export OCI_IMAGE_VERSION := env("OCI_IMAGE_VERSION", "")
 
 # ── BuildStream wrapper ──────────────────────────────────────────────
 # Runs any bst command inside the bst2 container via podman.
-# CPU baseline comes from project.conf: x86_64-v3 on x86_64, unchanged on ARM.
-# For a baseline x86_64 build, set BST_FLAGS="-o x86_64_v3 false".
+# CPU baseline comes from project.conf: baseline x86_64 (matches upstream caches).
+# For an uncached x86_64-v3 build, set BST_FLAGS="-o x86_64_v3 true".
 # Set BST_FLAGS to append flags (e.g. --config ...).
 # Set BST_FLAGS_OVERRIDE to replace all default/appended flags.
 # BST_RUNNER may name an executable alternate runner (also used by isolated tests).

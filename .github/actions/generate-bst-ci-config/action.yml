@@ -57,12 +57,14 @@ runs:
         EOF
         )
 
-        # Local build: a single builder is plenty on a hosted runner.
+        # Local build: give each build all runner cores. max-jobs is a
+        # protected BuildStream variable excluded from cache keys, so this
+        # does not affect artifact reuse; -j1 made LLVM alone take 4.5 h.
         if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]]; then
           MAX_JOBS=8
           BUILDERS=2
         else
-          MAX_JOBS=1
+          MAX_JOBS="$(nproc)"
           BUILDERS=2
         fi
 
