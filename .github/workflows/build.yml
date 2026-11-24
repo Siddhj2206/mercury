@@ -18,7 +18,15 @@ on:
       - "Justfile"
       - "project.conf"
       - "include/**"
+      - "scripts/bst_ghcr_cache.py"
+      - ".github/workflows/build.yml"
+      - ".github/actions/**"
   workflow_dispatch:
+    inputs:
+      continuation:
+        description: Continuation count for a build that hit the time budget (set automatically)
+        required: false
+        default: '0'
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled]
@@ -50,9 +58,12 @@ jobs:
     timeout-minutes: 355
     permissions:
       contents: read
-      # Save job pushes BST cache OCI artifacts to ghcr (public repo:
-      # packages storage is free). Restore needs only read.
+      # Artifact cache packs in ghcr (public package storage is free).
       packages: write
+      # Dispatch a continuation run when the build hits its time budget.
+      actions: write
+    env:
+      CACHE_WRITE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -71,39 +82,49 @@ jobs:
           docker image prune -af 2>/dev/null || true
           df -h /
 
-      # OCI cache (ghcr): junction artifacts already pull from gbm.gnome.org;
-      # this cache covers fetched sources and our own elements' CAS.
-      - name: Restore BST cache
-        uses: ./.github/actions/bst-oci-cache
-        with:
-          mode: restore
-          cas: 'true'
-          # PAT: GITHUB_TOKEN cannot read user-namespace packages even
-          # when repo-linked; falls back to github.token if unset.
-          github-token: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
+      # Mercury's artifact cache (scripts/bst_ghcr_cache.py): pulls packs
+      # from ghcr only when BuildStream asks for them, and on main banks
+      # each artifact as soon as it is built, so a timed-out run keeps its
+      # progress. Pull requests read it and never write.
+      - name: Start artifact cache
+        env:
+          CACHE_PUSH: ${{ env.CACHE_WRITE == 'true' && '1' || '0' }}
+          REGISTRY_USER: ${{ github.actor }}
+          # PAT first: GITHUB_TOKEN cannot always read user-namespace packages.
+          REGISTRY_TOKEN: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
+          CACHE_SOURCE: https://github.com/${{ github.repository }}
+          CACHE_PROXY_STORE: ${{ runner.temp }}/cache-proxy
+        run: just cache-proxy start
 
       - name: Generate BuildStream CI config
         uses: ./.github/actions/generate-bst-ci-config
-        env:
-          CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
-          CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
         with:
-          # OWNER TODO: flip to "true" after deploying a BuildBox remote and
-          # setting CAS_URL / CASD_CLIENT_CERT / CASD_CLIENT_KEY.
-          cas-url: ${{ vars.CAS_URL }}
-          enable-remote-execution: "false"
-          enable-push: "false"
+          cache-push: ${{ env.CACHE_WRITE }}
 
       - name: Build OCI image with BuildStream
+        id: bst
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
         run: |
           set -o pipefail
           mkdir -p logs
-          just bst build oci/mercury.bst 2>&1 | tee logs/bst-console.log
-        # Leaves ~45 min of the job budget for Save BST cache after the
-        # ~15 min restore; a timed-out build must still bank its CAS.
-        timeout-minutes: 290
+          # Stop short of the job limit so logs upload and a continuation
+          # can be dispatched. Everything built so far is already cached.
+          status=0
+          timeout --kill-after=2m 325m just bst build oci/mercury.bst 2>&1 | tee logs/bst-console.log || status=$?
+          if [ "$status" = 124 ] || [ "$status" = 137 ]; then
+            # timeout signals `just`, not the bst container it started.
+            podman ps --format '{{.ID}} {{.Names}}' | awk '$2 != "bst-cache-proxy" {print $1}' | xargs -r podman kill
+            echo "timed_out=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::BuildStream build hit the time budget; built artifacts are cached"
+          fi
+          exit "$status"
+
+      - name: Stop artifact cache
+        if: always()
+        env:
+          CACHE_PROXY_LOG: logs/cache-proxy.log
+        run: just cache-proxy stop
 
       - name: Upload build logs
         if: always()
@@ -114,16 +135,20 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # Cache writes only from main, never from PRs. Save even on failure:
-      # a cold build can exceed the 290-min cap, and banking partial CAS
-      # is what lets the next run resume instead of restarting.
-      - name: Save BST cache
-        if: "github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !cancelled()"
-        uses: ./.github/actions/bst-oci-cache
-        with:
-          mode: save
-          cas: 'true'
-          github-token: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
+      # A cold build can need more than one job's worth of time. Each run
+      # resumes from the cache, so continue automatically a bounded number
+      # of times instead of waiting for someone to press re-run.
+      - name: Continue the build in a new run
+        if: >-
+          always() && steps.bst.outputs.timed_out == 'true' && env.CACHE_WRITE == 'true' &&
+          fromJSON(inputs.continuation || '0') < 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ inputs.continuation || '0' }}
+        run: |
+          NEXT=$((CURRENT + 1))
+          gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f continuation="$NEXT"
+          echo "::notice::Dispatched continuation ${NEXT}/3"
 
   # Export, rechunk, lint, and boot-test the image. On pushes to main this
   # same job continues into signing and publishing so the exported image
@@ -157,15 +182,21 @@ jobs:
           docker image prune -af 2>/dev/null || true
           df -h /
 
-      - name: Generate BST fetch config
-        uses: ./.github/actions/generate-bst-ci-config
+      # Read-only: this job stages the Secure Boot private key, so nothing
+      # it builds may leave the runner. Its inputs come from the build job's
+      # cached artifacts.
+      - name: Start artifact cache (read-only)
         env:
-          CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
-          CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
+          CACHE_PUSH: '0'
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
+          CACHE_PROXY_STORE: ${{ runner.temp }}/cache-proxy
+        run: just cache-proxy start
+
+      - name: Generate BuildStream CI config
+        uses: ./.github/actions/generate-bst-ci-config
         with:
-          cas-url: ${{ vars.CAS_URL }}
-          enable-remote-execution: 'false'
-          enable-push: 'false'
+          cache-push: 'false'
 
       # OWNER TODO: create repo secret MERCURY_SECURE_BOOT_KEY containing the
       # PEM private key from `just secure-boot-keygen`. Without it the
@@ -209,21 +240,34 @@ jobs:
         run: rm -f files/boot-keys/private/secure-boot.key
 
       - name: Free the BuildStream cache
-        run: sudo rm -rf "${HOME}/.cache/buildstream"
+        run: |
+          just cache-proxy stop
+          sudo rm -rf "${HOME}/.cache/buildstream" "${RUNNER_TEMP}/cache-proxy"
 
       - name: Chunkify and lint image
         run: |
           just chunkify "localhost/${IMAGE_NAME}:latest"
           BUILD_IMAGE_NAME="${IMAGE_NAME}" just lint
 
-      # KVM is available on hosted runners. bcvk auto-installs via cargo on
-      # first use, which is slow; drop these two steps if that gets annoying.
+      # KVM is available on hosted runners. bcvk comes from its release
+      # binary, pinned by version and checksum, instead of compiling an
+      # unpinned git head on every run.
       - name: Install VM tooling
+        env:
+          BCVK_VERSION: v0.22.0
+          BCVK_SHA256: eb72198c0d36fab75bfcadbb6794a87afa6f496a4da6b1b34d27728243fa6474
         run: |
           for i in 1 2 3; do
             sudo apt-get update && sudo apt-get install -y qemu-system-x86 virtiofsd && break
             [ "$i" = 3 ] && exit 1 || sleep 10
           done
+          tarball="${RUNNER_TEMP}/bcvk.tar.gz"
+          curl -fsSL --retry 3 -o "$tarball" \
+            "https://github.com/bootc-dev/bcvk/releases/download/${BCVK_VERSION}/bcvk-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${BCVK_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" -C "${RUNNER_TEMP}"
+          sudo install -m755 "${RUNNER_TEMP}/bcvk-x86_64-unknown-linux-gnu" /usr/local/bin/bcvk
+          bcvk --version
 
       - name: Boot-test image in an ephemeral VM
         env:

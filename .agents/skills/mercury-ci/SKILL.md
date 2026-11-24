@@ -15,7 +15,7 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
 - Modifying or debugging GitHub Actions workflows in `.github/workflows/`
 - Diagnosing runner startup, syntax, or permission failures
 - Changing build, publish, or validation triggers and artifact flows
-- Investigating the OCI BST cache (`.github/actions/bst-oci-cache`) or the optional remote CAS (`CAS_URL`/`CASD_*`)
+- Investigating the BuildStream artifact cache (`scripts/bst_ghcr_cache.py`, `just cache-proxy`)
 
 ## When NOT to Use
 
@@ -31,9 +31,8 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
    - `track-bst-sources.yml`: daily source tracking, opens bundle and core-junction PRs
    - `vulnerability-scan.yml`: weekly Trivy scan of `:latest`
    - `scorecard.yml`, `validate-renovate.yml`, `renovate-automerge.yml`: supply-chain and Renovate plumbing
-   - `cleanup-bst-cache.yml`: weekly prune of dated `mercury-bst-*` cache tags (keeps newest 4)
 2. **Inspect at Run SHA**: Read the workflow YAML at the exact commit that executed.
-3. **Isolate Root Cause**: Distinguish syntax/permission failure (zero jobs run), source fetch failure, OCI cache restore/save failure, or BST compilation error.
+3. **Isolate Root Cause**: Distinguish syntax/permission failure (zero jobs run), source fetch failure, cache proxy failure (`logs/cache-proxy.log` in the build-logs artifact), a time-budget stop (a continuation run follows), or BST compilation error.
 4. **Enforce Least Privilege**: PR jobs never receive `MERCURY_SECURE_BOOT_KEY` and never push; fork PRs cannot get the `build` label gate.
 5. **Validate Locally**: Run `just check-publish-workflow` and `just validate` before submitting.
 
@@ -41,7 +40,8 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
 
 - **Third-Party Actions**: Pin all third-party actions to full 40-character commit SHAs with an inline version comment; the `no-floating-action-tags` pre-commit hook enforces it. Trivy runs as a pinned container image for the same reason.
 - **Single Stream**: One image, one stream. Every successful `main` build publishes `:<sha>` (immutable), `:latest` (rolling), and `:VERSION.DATE` (`YYYY.MM.DD`, for pinning/rollback). There is no `testing`/`next`/`stable` promotion and no rollback workflow — roll back by rebasing to a dated tag or reverting the merge.
-- **OCI BST Cache**: BuildStream state is cached as ghcr OCI artifacts (`mercury-bst-sources`, `mercury-bst-cas`) via `.github/actions/bst-oci-cache`, not `actions/cache`. Source cache restores on every job; `cas/` + `artifacts/` save runs on `main` only. Next step up if it overflows: a private `buildbox-casd` remote via `CAS_URL`/`CASD_*`.
+- **Artifact Cache**: `just cache-proxy` runs `scripts/bst_ghcr_cache.py`, a localhost BuildStream remote storing one pack per artifact in the `mercury-bst-cache` ghcr package. It pulls lazily, pushes each artifact as it is built (main only), skips artifacts the public caches serve, and refuses all source pushes. Any job that stages the Secure Boot key runs it read-only. Never cache with tarballs of the whole CAS or `actions/cache`: restores grow without bound and a timed-out run loses its work.
+- **Upstream Pin Freshness**: `gbm.gnome.org` keeps only recent `gnome-51` artifacts. A stale `gnome-build-meta.bst` pin misses nearly every GNOME element even though its keys match upstream; when a junction patch stops applying, fix or drop it so the tracker can move the pin.
 - **Build Label Gate**: Same-repo PRs labeled `build` run the full `build.yml` build + boot test. Fork PRs are blocked from that gate entirely.
 - **Truth in Reporting**: Never report CI as green while workflows are pending, queued, or skipped.
 
@@ -51,7 +51,7 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
 |---|---|
 | "A commit SHA is overkill; a version tag like `@v2` is fine." | Tags are mutable. Security policy requires 40-character commit SHAs for third-party actions, enforced by pre-commit. |
 | "CI is basically green, only one job is still running." | All jobs must complete. A green validate plus a pending build is not a green PR. |
-| "`actions/cache` is fine for the BST cache." | The 10 GB cap cannot hold a BST CAS; that's why the OCI cache action exists. |
+| "`actions/cache` (or a CAS tarball) is fine for the BST cache." | Both restore everything up front and save only at the end; a 10 GB cap or an hour-long restore follows. The proxy fetches per artifact and banks per artifact. |
 
 ## Red Flags
 
@@ -63,6 +63,7 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
 ## Verification
 
 - [ ] `just check-publish-workflow` passes
+- [ ] `just test-cache-proxy` passes when the cache proxy changes
 - [ ] All modified workflow files pass YAML linting and schema validation
 - [ ] Third-party actions are pinned to full commit SHAs with version comments
 - [ ] PR description specifies local checks run vs CI status
@@ -71,5 +72,5 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
 
 - [`docs/ci.md`](../../../docs/ci.md)
 - [`.github/workflows/`](../../../.github/workflows/)
-- [`.github/actions/bst-oci-cache/`](../../../.github/actions/bst-oci-cache/)
+- [`scripts/bst_ghcr_cache.py`](../../../scripts/bst_ghcr_cache.py)
 - [`Justfile`](../../../Justfile)

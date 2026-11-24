@@ -78,6 +78,60 @@ bst *ARGS:
         "{{bst2_image}}" \
         bash -c 'bst --colors "$@"' -- ${EFFECTIVE_BST_FLAGS} {{ARGS}}
 
+# Mercury's artifact cache: a localhost BuildStream remote (Remote Asset +
+# CAS) that stores one pack per artifact in ghcr. It pulls lazily, banks each
+# artifact as it is pushed, refuses source pushes, and skips artifacts the
+# public caches already serve. Add `- url: http://127.0.0.1:50051` to a
+# BuildStream config's artifact servers to use it.
+# Env: CACHE_REPO, CACHE_PUSH=1 (needs REGISTRY_USER/REGISTRY_TOKEN),
+#      CACHE_PROXY_STORE (pack scratch dir), CACHE_PROXY_LOG (stop: log copy).
+[group('build')]
+[doc('Start or stop the ghcr-backed BuildStream artifact cache proxy')]
+cache-proxy action="start":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    name=bst-cache-proxy
+    running() { [ -n "$(podman ps -q --filter "name=^${name}$" --filter status=running)" ]; }
+    case "{{action}}" in
+        start) ;;
+        stop)
+            if [ -n "${CACHE_PROXY_LOG:-}" ]; then podman logs "$name" > "$CACHE_PROXY_LOG" 2>&1 || true; fi
+            podman rm -f "$name" >/dev/null 2>&1 || true
+            exit 0 ;;
+        *) echo "usage: just cache-proxy [start|stop]" >&2; exit 2 ;;
+    esac
+    store="${CACHE_PROXY_STORE:-${HOME}/.cache/mercury-bst-cache-proxy}"
+    mkdir -p "$store" "${HOME}/.cache/buildstream"
+    podman rm -f "$name" >/dev/null 2>&1 || true
+    # label=disable: the proxy reads casd's object store from the bind mount.
+    podman run -d --name "$name" --security-opt label=disable --network=host \
+        -v "${HOME}/.cache/buildstream:/bstcache:ro" \
+        -v "${store}:/store" \
+        -v "{{justfile_directory()}}/scripts:/scripts:ro" \
+        -e CACHE_REPO="${CACHE_REPO:-ghcr.io/siddhj2206/mercury-bst-cache}" \
+        -e CACHE_PUSH="${CACHE_PUSH:-0}" \
+        -e REGISTRY_USER -e REGISTRY_TOKEN -e CACHE_SOURCE \
+        -e UPSTREAMS="https://gbm.gnome.org:11003,https://cache.freedesktop-sdk.io:11001" \
+        -e USED_LOG=/store/used.log \
+        "{{bst2_image}}" python3 /scripts/bst_ghcr_cache.py >/dev/null
+    for _ in $(seq 120); do
+        if podman logs "$name" 2>&1 | grep -q "serving on"; then podman logs "$name"; exit 0; fi
+        running || { podman logs "$name" >&2; echo "cache proxy exited" >&2; exit 1; }
+        sleep 1
+    done
+    podman logs "$name" >&2
+    echo "cache proxy did not start within 120 s" >&2
+    exit 1
+
+# Runs in the bst2 container, which has grpcio and BuildStream's protos.
+[group('check')]
+[doc('Test the artifact cache proxy against a fake registry')]
+test-cache-proxy:
+    podman run --rm --security-opt label=disable --network=none \
+        -v "{{justfile_directory()}}/scripts:/scripts:ro" \
+        -e PYTHONDONTWRITEBYTECODE=1 \
+        "{{bst2_image}}" python3 -m unittest /scripts/test_bst_ghcr_cache.py
+
 # Generate the Mercury Secure Boot key pair. The certificate is public and
 # committed; the kernel trusts it for modules, and users enroll it as a MOK.
 # The private key stays in the gitignored files/boot-keys/private/ and goes

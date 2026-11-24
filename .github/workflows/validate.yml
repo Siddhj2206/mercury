@@ -32,10 +32,12 @@ jobs:
       - name: Validate workflow and script checks
         run: just check-publish-workflow
 
-      # No actions/cache for the BST CAS: it cannot hold the artifact cache
-      # (10 GB limit vs ~100 GB) and `bst show` only needs junctions, which
-      # re-fetch in seconds. A real CAS remote is the answer — see
-      # docs/ci-research.md.
+      - name: Test the artifact cache proxy
+        run: just test-cache-proxy
+
+      # `bst show` needs only the junctions, which re-fetch in seconds; no
+      # artifact cache is involved. Builds use the ghcr artifact cache
+      # (docs/ci.md).
 
       - name: Check for dangling submodules
         run: |

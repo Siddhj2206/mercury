@@ -1,22 +1,16 @@
 name: Generate BuildStream CI config
-description: Write BuildStream CI config for local builds with read-only public caches.
+description: >-
+  Write the BuildStream user config for CI: local builds, Mercury's ghcr
+  artifact cache (through the `just cache-proxy` server on localhost) first,
+  then the public gnome-build-meta and freedesktop-sdk caches.
 
 inputs:
-  enable-remote-execution:
+  cache-push:
     description: >-
-      Route build actions and CAS storage through a remote-execution cache.
-      Requires vars.CAS_URL plus CASD_CLIENT_CERT (repo variable) and
-      CASD_CLIENT_KEY (repo secret). Mercury has no remote-execution
-      infrastructure yet; leave disabled unless the owner deploys one.
-    required: true
-  enable-push:
-    description: Publish built artifacts and fetched sources during the BuildStream build.
+      Push artifacts built here to Mercury's ghcr cache. Main-branch build
+      jobs only; signing jobs and pull requests stay read-only.
     required: false
-    default: 'true'
-  cas-url:
-    description: Optional private BuildBox CAS/remote-execution URL (vars.CAS_URL).
-    required: false
-    default: ''
+    default: 'false'
 
 runs:
   using: composite
@@ -24,23 +18,11 @@ runs:
     - name: Generate BuildStream CI config
       shell: bash
       env:
-        ENABLE_REMOTE_EXECUTION: ${{ inputs.enable-remote-execution }}
-        ENABLE_PUSH: ${{ inputs.enable-push }}
-        CAS_URL: ${{ inputs.cas-url }}
+        CACHE_PUSH: ${{ inputs.cache-push }}
       run: |
         set -euo pipefail
         WORKSPACE_ROOT="${GITHUB_WORKSPACE:-$PWD}"
         mkdir -p "$WORKSPACE_ROOT/logs"
-
-        if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]] &&
-           { [[ -z "${CAS_URL:-}" ]] || [[ -z "${CASD_CLIENT_CERT:-}" ]] || [[ -z "${CASD_CLIENT_KEY:-}" ]]; }; then
-          echo "::error::remote execution was requested but CAS_URL / CASD client credentials are missing"
-          exit 1
-        fi
-
-        printf '%s\n' "${CASD_CLIENT_CERT:-}" > "$WORKSPACE_ROOT/client.crt"
-        printf '%s\n' "${CASD_CLIENT_KEY:-}" > "$WORKSPACE_ROOT/client.key"
-        chmod 0600 "$WORKSPACE_ROOT/client.crt" "$WORKSPACE_ROOT/client.key"
 
         CONNECTION_CONFIG=$(cat <<'EOF'
             connection-config:
@@ -50,29 +32,15 @@ runs:
               request-timeout: 180
         EOF
         )
-        CLIENT_AUTH=$(cat <<'EOF'
-            auth:
-              client-key: /src/client.key
-              client-cert: /src/client.crt
-        EOF
-        )
 
-        # Local build: give each build all runner cores. max-jobs is a
-        # protected BuildStream variable excluded from cache keys, so this
-        # does not affect artifact reuse; -j1 made LLVM alone take 4.5 h.
-        if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]]; then
-          MAX_JOBS=8
-          BUILDERS=2
-        else
-          MAX_JOBS="$(nproc)"
-          BUILDERS=2
-        fi
-
+        # max-jobs is a protected BuildStream variable excluded from cache
+        # keys, so giving each build every runner core does not affect
+        # artifact reuse; -j1 made LLVM alone take 4.5 h.
         cat > "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONF
         scheduler:
           on-error: continue
           fetchers: 32
-          builders: ${BUILDERS}
+          builders: 2
           network-retries: 3
 
         logging:
@@ -81,20 +49,19 @@ runs:
 
         cachedir: /root/.cache/buildstream
         logdir: /src/logs
-        BSTCONF
 
-        cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFBUILD
         build:
           retry-failed: True
-          max-jobs: ${MAX_JOBS}
-        BSTCONFBUILD
+          max-jobs: $(nproc)
 
-        # Public read-only artifact and source caches need no credentials.
-        # An owner-operated CAS (vars.CAS_URL + CASD_CLIENT_CERT var +
-        # CASD_CLIENT_KEY secret) is appended as a push target when present.
-        cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFCACHE
+        # Mercury's cache answers first: a miss there is a localhost round
+        # trip, while a miss on a public cache can cost minutes of retries.
+        # The proxy refuses source pushes and skips artifacts the public
+        # caches already serve.
         artifacts:
           servers:
+          - url: http://127.0.0.1:50051
+            push: ${CACHE_PUSH}
           - url: https://gbm.gnome.org:11003
             push: false
         ${CONNECTION_CONFIG}
@@ -110,52 +77,10 @@ runs:
           - url: https://cache.freedesktop-sdk.io:11001
             push: false
         ${CONNECTION_CONFIG}
-        BSTCONFCACHE
-
-        # OWNER TODO: to enable a private artifact/source cache, create repo
-        # variable CAS_URL (e.g. https://cache.example.org:11002), repo variable
-        # CASD_CLIENT_CERT, and repo secret CASD_CLIENT_KEY. The block below
-        # prepends that CAS as the push target automatically.
-        if [[ -n "${CAS_URL:-}" ]] &&
-           [[ -n "${CASD_CLIENT_CERT:-}" ]] && [[ -n "${CASD_CLIENT_KEY:-}" ]]; then
-          PUSH_FLAG="${ENABLE_PUSH:-true}"
-          cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFCAS
-          - url: ${CAS_URL}
-            push: ${PUSH_FLAG}
-        ${CONNECTION_CONFIG}
-        ${CLIENT_AUTH}
-        BSTCONFCAS
-          echo "Private CAS enabled (push=${PUSH_FLAG}): ${CAS_URL}"
-        fi
-
-        cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<'BSTCONFCACHEBLOCK'
 
         cache:
           cache-buildtrees: never
-        BSTCONFCACHEBLOCK
-
-        if [[ "${ENABLE_REMOTE_EXECUTION:-false}" == "true" ]]; then
-          cat >> "$WORKSPACE_ROOT/buildstream-ci.conf" <<BSTCONFREMOTE
-          storage-service:
-            url: ${CAS_URL}
-        ${CONNECTION_CONFIG}
-        ${CLIENT_AUTH}
-
-        remote-execution:
-          execution-service:
-            url: ${CAS_URL}
-        ${CONNECTION_CONFIG}
-        ${CLIENT_AUTH}
-          action-cache-service:
-            url: ${CAS_URL}
-            push: true
-        ${CONNECTION_CONFIG}
-        ${CLIENT_AUTH}
-        BSTCONFREMOTE
-          echo "Remote execution enabled: yes"
-        else
-          echo "Remote execution enabled: no"
-        fi
+        BSTCONF
 
         cp "$WORKSPACE_ROOT/buildstream-ci.conf" "$WORKSPACE_ROOT/logs/buildstream-ci.conf"
         echo "=== BuildStream CI config ==="
