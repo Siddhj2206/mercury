@@ -37,16 +37,16 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(self.select("--group", "bundle"), self.select()[:-1])
         self.assertEqual(self.select("--group", "tracked"), [x[0] for x in updater.TRACKED + updater.KERNELS])
         self.assertEqual(self.select("--group", "kernels"), [x[0] for x in updater.KERNELS])
-        self.assertEqual(self.select("--element", "core/linux-fdsdk.bst"), ["core/linux-fdsdk.bst"])
+        self.assertEqual(self.select("--element", "kernel/linux-fdsdk.bst"), ["kernel/linux-fdsdk.bst"])
         self.assertEqual(self.select("--group", "tarballs"), list(updater.RELEASES))
         self.assertEqual(self.select("--group", "core-junctions"), [updater.CORE])
-        self.assertEqual(self.select("--element", "mercury/gum.bst"), ["mercury/gum.bst"])
+        self.assertEqual(self.select("--element", "apps/gum.bst"), ["apps/gum.bst"])
 
     def test_unknown_element_and_conflicting_selection_fail_before_work(self):
         with mock.patch.object(updater, "update") as update, \
                 contextlib.redirect_stderr(io.StringIO()):
             for args in (["--element", "../../oops"],
-                         ["--group", "bundle", "--element", "mercury/gum.bst"]):
+                         ["--group", "bundle", "--element", "apps/gum.bst"]):
                 with self.assertRaises(SystemExit):
                     updater.main(args)
             update.assert_not_called()
@@ -78,9 +78,9 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(len(items), len(updater.TRACKED) + len(updater.KERNELS))
         for kernel, _, _ in updater.KERNELS:
             self.assertIn("kernel patches", items[kernel]["note"])
-        self.assertIn("mercury/brew-tarball.bst", items)
-        self.assertIn("mercury/boost.bst", items)
-        self.assertEqual(items["mercury/usbmuxd.bst"]["note"],
+        self.assertIn("apps/brew-tarball.bst", items)
+        self.assertIn("input/boost.bst", items)
+        self.assertEqual(items["hardware/usbmuxd.bst"]["note"],
                          "review: unreleased branch head")
         for element in items:
             self.assertTrue((REPOSITORY / "elements" / element).is_file())
@@ -125,8 +125,8 @@ class SelectionTests(unittest.TestCase):
             lines = [line for line in block[1].splitlines()
                      if not line.lstrip().startswith("#")]
             return [line for line in lines if not line.startswith("  ref:")]
-        self.assertEqual(git_source("mercury/hyperv-daemons.bst"),
-                         git_source("core/linux-fdsdk.bst"))
+        self.assertEqual(git_source("virt/hyperv-daemons.bst"),
+                         git_source("kernel/linux-fdsdk.bst"))
 
 
 # A tag and asset name each release's patterns accept, newer than any pin.
@@ -160,26 +160,26 @@ class RewriteTests(unittest.TestCase):
                 self.assertEqual(updater.rewrite_release(updated, release, tag, asset)[0], updated)
 
     def test_multi_asset_release_moves_together_and_skips_paused_arm(self):
-        release = updater.RELEASES["mercury/tealdeer.bst"]
-        text = (REPOSITORY / "elements/mercury/tealdeer.bst").read_text()
+        release = updater.RELEASES["apps/tealdeer.bst"]
+        text = (REPOSITORY / "elements/apps/tealdeer.bst").read_text()
         old = updater.pinned_version(text, release)
         updated, _ = updater.rewrite_release(text, release, "v99.88.77")
         self.assertEqual(updated.count("download/v99.88.77/"), 4)
         self.assertIn(f"download/{old}/tealdeer-linux-aarch64-musl", updated)
-        fonts = updater.RELEASES["mercury/nerd-fonts-symbols.bst"]
-        text = (REPOSITORY / "elements/mercury/nerd-fonts-symbols.bst").read_text()
+        fonts = updater.RELEASES["fonts/nerd-fonts-symbols.bst"]
+        text = (REPOSITORY / "elements/fonts/nerd-fonts-symbols.bst").read_text()
         self.assertEqual(updater.rewrite_release(text, fonts, "v99.88.77")[0].count("/v99.88.77/"), 4)
 
     def test_asset_names_are_validated(self):
-        release = updater.RELEASES["mercury/open-vm-tools.bst"]
-        text = (REPOSITORY / "elements/mercury/open-vm-tools.bst").read_text()
+        release = updater.RELEASES["virt/open-vm-tools.bst"]
+        text = (REPOSITORY / "elements/virt/open-vm-tools.bst").read_text()
         for asset in ("", "open-vm-tools-1.2.3-4.tar.gz/../evil", "other-1.2.3-4.tar.gz"):
             with self.subTest(asset=asset), self.assertRaises(ValueError):
                 updater.rewrite_release(text, release, "stable-1.2.3", asset)
 
     def test_older_arm_version_is_left_alone(self):
-        release = updater.RELEASES["mercury/gum.bst"]
-        text = (REPOSITORY / "elements/mercury/gum.bst").read_text()
+        release = updater.RELEASES["apps/gum.bst"]
+        text = (REPOSITORY / "elements/apps/gum.bst").read_text()
         urls = re.findall(r"url: (\S+)", text)
         mixed = text.replace(urls[1], "github_files:charmbracelet/gum/releases/download/"
                              "v0.1.0/gum_0.1.0_Linux_arm64.tar.gz")
@@ -202,16 +202,16 @@ class RewriteTests(unittest.TestCase):
                 self.assertEqual(sum(a != b for a, b in zip(original_urls, updated_urls)), 1)
 
     def test_up_to_date_x86_with_older_arm_is_a_noop(self):
-        release = updater.RELEASES["mercury/gum.bst"]
-        text = (REPOSITORY / "elements/mercury/gum.bst").read_text()
+        release = updater.RELEASES["apps/gum.bst"]
+        text = (REPOSITORY / "elements/apps/gum.bst").read_text()
         text, _ = updater.rewrite_release(text, release, "v99.88.77")
         updated, old = updater.rewrite_release(text, release, "v99.88.77")
         self.assertEqual(updated, text)
         self.assertEqual(old, "v99.88.77")
 
     def test_bad_tags_and_changed_url_layout_fail_closed(self):
-        release = updater.RELEASES["mercury/gum.bst"]
-        text = (REPOSITORY / "elements/mercury/gum.bst").read_text()
+        release = updater.RELEASES["apps/gum.bst"]
+        text = (REPOSITORY / "elements/apps/gum.bst").read_text()
         for tag in ("", "null", "v1.2.3/evil", "v1.2.3\nref: bad", "v1.2.3-rc1"):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 updater.rewrite_release(text, release, tag)
@@ -269,7 +269,7 @@ elif name == "just" and args[0] == "bst":
     header, text = path.read_text().split("sources:\n", 1)
     if args[-1] == "gnome-build-meta.bst":
         ref = "gnome-99-0-g" + "b" * 40
-    elif args[-1] == "core/linux-fdsdk.bst":
+    elif args[-1] == "kernel/linux-fdsdk.bst":
         ref = os.environ.get("KERNEL_REF", "v7.2.7-0-g" + "b" * 40)
     else:
         ref = "d" * 64
@@ -303,7 +303,7 @@ else:
 GENERATOR_STUB = r'''import json, os, pathlib, re, sys
 with open(os.environ["CALL_LOG"], "a") as log:
     log.write(json.dumps(["generator", *sys.argv[1:]]) + "\n")
-path = pathlib.Path("elements/mercury/ghostty.bst")
+path = pathlib.Path("elements/apps/ghostty.bst")
 path.write_text(re.sub(r"ghostty_releases:[0-9.]+/ghostty-[0-9.]+",
                        f"ghostty_releases:{sys.argv[1]}/ghostty-{sys.argv[1]}", path.read_text()))
 if os.environ.get("FAIL_GENERATOR"):
@@ -339,7 +339,7 @@ class CliTests(unittest.TestCase):
             path.chmod(0o755)
         # The Ghostty generator downloads; stand in with a recorder that
         # rewrites the release version (and can fail after a partial write).
-        generator = self.root / updater.RELEASES["mercury/ghostty.bst"].generator
+        generator = self.root / updater.RELEASES["apps/ghostty.bst"].generator
         generator.parent.mkdir(parents=True)
         generator.write_text(GENERATOR_STUB)
         self.log = self.root / "calls.jsonl"
@@ -357,7 +357,7 @@ class CliTests(unittest.TestCase):
         # record-element compares against HEAD. Use a disposable fixture repo,
         # never the developer's checkout, to exercise the real recorder.
         for args in (["init", "-q"],
-                     ["add", "--", "elements/core/linux-fdsdk.bst"],
+                     ["add", "--", "elements/kernel/linux-fdsdk.bst"],
                      ["-c", "user.name=Test", "-c", "user.email=test@example.invalid",
                       "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
                       "commit", "-qm", "fixture"]):
@@ -369,9 +369,9 @@ class CliTests(unittest.TestCase):
                 if p.is_file()}
 
     def test_release_tracks_only_x86_and_records_untouched_arm(self):
-        path = self.root / "elements/mercury/gum.bst"
+        path = self.root / "elements/apps/gum.bst"
         arm_block = re.search(r'(?m)^  - arch == "aarch64":\n(?:^ {4,}[^\n]*\n)+', path.read_text())[0]
-        result = self.cli("--element", "mercury/gum.bst", "--record-dir", "tracked")
+        result = self.cli("--element", "apps/gum.bst", "--record-dir", "tracked")
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.calls()
         self.assertEqual(calls[0][0:2], ["gh", "api"])
@@ -379,13 +379,13 @@ class CliTests(unittest.TestCase):
         self.assertIn(arm_block, path.read_text())
         meta = json.loads((self.root / "tracked/meta/gum.json").read_text())
         self.assertIn("v99.88.77", meta["title"])
-        self.assertEqual((self.root / "tracked/files/elements/mercury/gum.bst").read_bytes(),
-                         (self.root / "elements/mercury/gum.bst").read_bytes())
+        self.assertEqual((self.root / "tracked/files/elements/apps/gum.bst").read_bytes(),
+                         (self.root / "elements/apps/gum.bst").read_bytes())
 
     def test_generated_release_regenerates_without_tracking(self):
-        path = self.root / "elements/mercury/ghostty.bst"
+        path = self.root / "elements/apps/ghostty.bst"
         old = re.search(r"ghostty_releases:([0-9.]+)/", path.read_text())[1]
-        result = self.cli("--element", "mercury/ghostty.bst", "--record-dir", "tracked")
+        result = self.cli("--element", "apps/ghostty.bst", "--record-dir", "tracked")
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.calls()
         self.assertEqual(calls[0][0:3], ["gh", "api", "repos/ghostty-org/ghostty/tags?per_page=100"])
@@ -396,13 +396,13 @@ class CliTests(unittest.TestCase):
         self.assertIn(f"compare/v{old}...v99.88.77", meta["links"])
 
     def test_generated_release_up_to_date_or_failed_leaves_element(self):
-        path = self.root / "elements/mercury/ghostty.bst"
+        path = self.root / "elements/apps/ghostty.bst"
         tag = "v" + re.search(r"ghostty_releases:([0-9.]+)/", path.read_text())[1]
         before = self.snapshot()
         for env in ({"RELEASE_TAG": tag}, {"FAIL_GENERATOR": "1"}, {"RELEASE_TAG": "tip"}):
             with self.subTest(env=env):
                 self.log.unlink(missing_ok=True)
-                result = self.cli("--element", "mercury/ghostty.bst", "--record-dir", "tracked", **env)
+                result = self.cli("--element", "apps/ghostty.bst", "--record-dir", "tracked", **env)
                 self.assertEqual(result.returncode, 0 if "RELEASE_TAG" in env and env["RELEASE_TAG"] == tag else 1)
                 self.assertEqual(self.snapshot(), before)
                 self.assertFalse((self.root / "tracked/meta").exists())
@@ -410,19 +410,19 @@ class CliTests(unittest.TestCase):
                     self.assertEqual([c[0] for c in self.calls()], ["gh"])
 
     def test_tracking_failure_restores_entire_element_and_records_nothing(self):
-        path = self.root / "elements/mercury/gum.bst"
+        path = self.root / "elements/apps/gum.bst"
         path.write_text(path.read_text() + "\n# uncommitted user edit\n")
         before = self.snapshot()
-        result = self.cli("--element", "mercury/gum.bst", "--record-dir", "tracked",
-                          FAIL_ELEMENT="mercury/gum.bst")
+        result = self.cli("--element", "apps/gum.bst", "--record-dir", "tracked",
+                          FAIL_ELEMENT="apps/gum.bst")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(self.snapshot(), before)
         self.assertFalse((self.root / "tracked/meta").exists())
 
     def test_oci_source_tracks_only_x86_without_release_lookup(self):
-        path = self.root / "elements/mercury/brew-tarball.bst"
+        path = self.root / "elements/apps/brew-tarball.bst"
         arm_block = re.search(r'(?m)^  - arch == "aarch64":\n(?:^ {4,}[^\n]*\n)+', path.read_text())[0]
-        result = self.cli("--element", "mercury/brew-tarball.bst")
+        result = self.cli("--element", "apps/brew-tarball.bst")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(self.calls()), 1)
         self.assertEqual([c[c.index("arch") + 1] for c in self.calls()], ["x86_64"])
@@ -430,10 +430,10 @@ class CliTests(unittest.TestCase):
         self.assertFalse((self.root / "tracked/meta").exists())
 
     def test_unchanged_release_does_not_track(self):
-        path = self.root / "elements/mercury/gum.bst"
+        path = self.root / "elements/apps/gum.bst"
         tag = re.search(r"download/(v[^/]+)/", path.read_text())[1]
         before = self.snapshot()
-        result = self.cli("--element", "mercury/gum.bst", RELEASE_TAG=tag)
+        result = self.cli("--element", "apps/gum.bst", RELEASE_TAG=tag)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(self.calls()), 1)
         self.assertEqual(self.snapshot(), before)
@@ -448,14 +448,14 @@ class CliTests(unittest.TestCase):
             for command in (["track"], ["checkout", "--deps", "none", "--directory",
                                          f".source-check/{Path(element).stem}"])
         ])
-        text = (self.root / "elements/core/linux-fdsdk.bst").read_text()
+        text = (self.root / "elements/kernel/linux-fdsdk.bst").read_text()
         self.assertIn(f"ref: v7.2.7-0-g{SHA}", text)
-        self.assertIn(re.search(r"track: .*", (REPOSITORY / "elements/core/linux-fdsdk.bst").read_text())[0],
+        self.assertIn(re.search(r"track: .*", (REPOSITORY / "elements/kernel/linux-fdsdk.bst").read_text())[0],
                       text)
         self.assertNotIn("gh", [call[0] for call in self.calls()])
 
     def test_next_kernel_patterns_and_rc_refs_are_preserved(self):
-        linux = self.root / "elements/core/linux-fdsdk.bst"
+        linux = self.root / "elements/kernel/linux-fdsdk.bst"
         linux.write_text(re.sub(r"track: v[0-9.]+\*\n(  exclude:\n(  - \S+\n)+)?", "track: v*\n",
                                 linux.read_text()))
         result = self.cli("--group", "kernels", KERNEL_REF=f"v7.3-rc4-0-g{SHA}")
@@ -490,38 +490,38 @@ class CliTests(unittest.TestCase):
 
     def test_kernel_patch_failure_records_nothing(self):
         self.init_recording_repo()
-        linux = self.root / "elements/core/linux-fdsdk.bst"
+        linux = self.root / "elements/kernel/linux-fdsdk.bst"
         before = linux.read_bytes()
         result = self.cli("--group", "kernels", "--record-dir", "tracked",
-                          FAIL_CHECKOUT="core/linux-fdsdk.bst")
+                          FAIL_CHECKOUT="kernel/linux-fdsdk.bst")
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertEqual(linux.read_bytes(), before)
-        self.assertFalse((self.root / "tracked/files/elements/core/linux-fdsdk.bst").exists())
+        self.assertFalse((self.root / "tracked/files/elements/kernel/linux-fdsdk.bst").exists())
 
     def test_unchanged_kernel_ref_still_checks_patches(self):
-        path = self.root / "elements/core/linux-fdsdk.bst"
+        path = self.root / "elements/kernel/linux-fdsdk.bst"
         ref = re.search(r"^  ref: (\S+)$", path.read_text(), re.MULTILINE)[1]
         before = self.snapshot()
-        result = self.cli("--element", "core/linux-fdsdk.bst", KERNEL_REF=ref,
-                          FAIL_CHECKOUT="core/linux-fdsdk.bst")
+        result = self.cli("--element", "kernel/linux-fdsdk.bst", KERNEL_REF=ref,
+                          FAIL_CHECKOUT="kernel/linux-fdsdk.bst")
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("checkout", self.calls()[-1])
         self.assertEqual(self.snapshot(), before)
 
     def test_successful_kernel_check_records_the_element(self):
         self.init_recording_repo()
-        result = self.cli("--element", "core/linux-fdsdk.bst", "--record-dir", "tracked",
+        result = self.cli("--element", "kernel/linux-fdsdk.bst", "--record-dir", "tracked",
                           KERNEL_REF=f"v7.2.9-0-g{SHA}")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("checkout", self.calls()[-1])
-        recorded = self.root / "tracked/files/elements/core/linux-fdsdk.bst"
+        recorded = self.root / "tracked/files/elements/kernel/linux-fdsdk.bst"
         self.assertIn(f"ref: v7.2.9-0-g{SHA}", recorded.read_text())
         self.assertEqual(recorded.read_bytes(),
-                         (self.root / "elements/core/linux-fdsdk.bst").read_bytes())
+                         (self.root / "elements/kernel/linux-fdsdk.bst").read_bytes())
 
     def test_feed_release_tracks_checksum_and_never_moves_backwards(self):
-        path = self.root / "elements/mercury/pam-u2f.bst"
-        result = self.cli("--element", "mercury/pam-u2f.bst", "--record-dir", "tracked")
+        path = self.root / "elements/auth/pam-u2f.bst"
+        result = self.cli("--element", "auth/pam-u2f.bst", "--record-dir", "tracked")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.calls()[0][:2], ["curl", "-fsSL"])
         self.assertIn("pam_u2f-99.88.77.tar.gz", path.read_text())
@@ -532,7 +532,7 @@ class CliTests(unittest.TestCase):
         for body in ("<entry><title>pam_u2f-1.0.0.tar.gz</title></entry>", "not xml", "{}"):
             with self.subTest(body=body):
                 self.log.unlink(missing_ok=True)
-                result = self.cli("--element", "mercury/pam-u2f.bst", FEED_BODY=body)
+                result = self.cli("--element", "auth/pam-u2f.bst", FEED_BODY=body)
                 if "pam_u2f-" in body:
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn("keeping it", result.stdout)
@@ -551,10 +551,10 @@ class CliTests(unittest.TestCase):
         self.assertIn("elements%2Fcomponents%2Falsa-lib.bst", calls[3][-1])
         self.assertEqual(calls[4][-1], updater.ALSA_UTILS.feed)
         self.assertEqual(calls[5], ["just", "bst", "--no-interactive", "-o", "arch", "x86_64",
-                                    "source", "track", "mercury/alsa-utils.bst"])
+                                    "source", "track", "hardware/alsa-utils.bst"])
         self.assertEqual(calls[6:], [["just", "patch-sync"], ["just", "patch-drift-check"]])
         # The alsa-lib 9.8.7.1 hotfix pairs with alsa-utils 9.8.7, never 9.8.8.
-        alsa = (self.root / "elements/mercury/alsa-utils.bst").read_text()
+        alsa = (self.root / "elements/hardware/alsa-utils.bst").read_text()
         self.assertIn("url: alsa_project:utils/alsa-utils-9.8.7.tar.bz2\n", alsa)
         self.assertIn("sdk-99-0-g" + "c" * 40,
                       (self.root / "elements/freedesktop-sdk.bst").read_text())
@@ -591,7 +591,7 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(self.snapshot(), before)
 
     def test_patched_elements_must_still_apply_their_patches(self):
-        for element in ("mercury/open-vm-tools.bst", "mercury/nicstat.bst"):
+        for element in ("virt/open-vm-tools.bst", "diagnostics/nicstat.bst"):
             with self.subTest(element=element):
                 path = self.root / "elements" / element
                 path.write_text(path.read_text() + "\n# local edit\n")
@@ -604,22 +604,22 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(self.snapshot(), before)
                 self.assertFalse((self.root / "tracked/meta").exists())
                 self.assertFalse((self.root / ".source-check").exists())
-        result = self.cli("--element", "mercury/open-vm-tools.bst")
+        result = self.cli("--element", "virt/open-vm-tools.bst")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("open-vm-tools-99.88.77-12345.tar.gz",
-                      (self.root / "elements/mercury/open-vm-tools.bst").read_text())
+                      (self.root / "elements/virt/open-vm-tools.bst").read_text())
         self.assertFalse((self.root / ".source-check").exists())
 
     def test_failures_are_recorded_for_the_bundle_pr(self):
-        result = self.cli("--element", "mercury/gum.bst", "--record-dir", "tracked",
+        result = self.cli("--element", "apps/gum.bst", "--record-dir", "tracked",
                           RELEASE_TAG="not-a-tag")
         self.assertEqual(result.returncode, 1)
         record = json.loads((self.root / "tracked/failed/gum.json").read_text())
-        self.assertEqual(record["element"], "mercury/gum.bst")
+        self.assertEqual(record["element"], "apps/gum.bst")
         self.assertIn("Unexpected release tag", record["error"])
         # The matrix records updates in a later step, so it names the directory itself.
-        result = self.cli("--element", "mercury/brlaser.bst", "--failure-dir", "elsewhere",
-                          FAIL_ELEMENT="mercury/brlaser.bst")
+        result = self.cli("--element", "hardware/brlaser.bst", "--failure-dir", "elsewhere",
+                          FAIL_ELEMENT="hardware/brlaser.bst")
         self.assertEqual(result.returncode, 1)
         record = json.loads((self.root / "elsewhere/failed/brlaser.json").read_text())
         self.assertIn("exited 1", record["error"])
@@ -633,13 +633,13 @@ class CliTests(unittest.TestCase):
 
     def test_failed_release_does_not_drop_other_records(self):
         result = self.cli("--group", "tarballs", "--record-dir", "tracked",
-                          FAIL_ELEMENT="mercury/tealdeer.bst")
+                          FAIL_ELEMENT="apps/tealdeer.bst")
         self.assertEqual(result.returncode, 1)
         # The failed element's partial write is rolled back; every other
         # release is still recorded.
         self.assertEqual(sorted(p.stem for p in (self.root / "tracked/meta").glob("*.json")),
                          sorted(Path(e).stem
-                                for e in updater.RELEASES if e != "mercury/tealdeer.bst"))
+                                for e in updater.RELEASES if e != "apps/tealdeer.bst"))
 
 
 class GhosttyZigTests(unittest.TestCase):
@@ -664,7 +664,7 @@ class GhosttyZigTests(unittest.TestCase):
                 self.gen.zig_for("0.19.0", bad)
 
     def test_only_the_x86_zig_pin_moves(self):
-        text = (REPOSITORY / "elements/mercury/zig.bst").read_text()
+        text = (REPOSITORY / "elements/apps/zig.bst").read_text()
         arm = re.search(r'(?m)^  - arch == "aarch64":\n(?:^ {4,}[^\n]*\n)+', text)[0]
         updated = self.gen.pin_zig(text, "9.8.7", "f" * 64)
         self.assertIn("url: ziglang:download/9.8.7/zig-x86_64-linux-9.8.7.tar.xz\n      ref: " + "f" * 64,

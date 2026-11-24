@@ -33,7 +33,7 @@ Invariants, each enforced by a build failure:
   `kernel-modules` split rule that the base compose excludes.
 - **The boot layer carries only its own files.** Its stack may only reach
   artifacts without runtime dependencies; use a filter to drop them, as
-  `mercury/secure-boot-tools-files.bst` does. The base must contain what those
+  `boot/secure-boot-tools-files.bst` does. The base must contain what those
   programs need, and the final element fails when a `--require-base-path` is
   missing.
 - **Signed boot layers verify their signatures.** `include/boot-layer.yml`

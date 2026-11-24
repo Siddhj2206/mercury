@@ -35,7 +35,14 @@ See [BuildStream project options](https://docs.buildstream.build/master/format_p
 |---|---|
 | `elements/freedesktop-sdk.bst` | fdsdk junction — pinned to a release tag |
 | `elements/gnome-build-meta.bst` | GBM junction — tracks a `gnome-*` branch |
-| `elements/mercury/` | Mercury-specific elements |
+| `elements/deps.bst` | Top-level package stack, sectioned by directory |
+| `elements/overrides/` | Replacements wired into the junctions' `overrides:` |
+| `elements/kernel/`, `boot/` | Kernel, modules, Secure Boot chain, boot config |
+| `elements/system/`, `auth/` | System services, swap, network, PAM/sudo |
+| `elements/hardware/`, `virt/`, `diagnostics/` | Device support, VMs/containers, tracing tools |
+| `elements/apps/`, `input/`, `fonts/` | User-facing tools, input methods, fonts |
+| `elements/desktop/` | niri + DMS session stack |
+| `elements/build-tools/` | Build-only helper stacks (`sandbox-tools`) |
 | `elements/oci/` | OCI image assembly — layers + final image |
 | `patches/linux/` | Kernel patches (via fdsdk linux element) |
 | `files/` | Static files installed by elements |
@@ -47,7 +54,7 @@ See [BuildStream project options](https://docs.buildstream.build/master/format_p
 ```bash
 just validate                  # graph check — always run first (~5 min, no build)
 
-just build                     # build+export the image — warm: minutes; first v3 build: many hours
+just build                     # build+export the image — warm: minutes; cold: hours
 
 just lint                      # bootc container lint — must pass before PR
 
@@ -63,8 +70,8 @@ First run is slow (cold BST cache). Subsequent runs are fast — BST caches by c
 
 ```bash
 just validate                                        # check element graph
-just bst build mercury/some-element.bst              # build one element
-just bst shell --build mercury/some-element.bst      # sandbox shell
+just bst build apps/some-element.bst              # build one element
+just bst shell --build apps/some-element.bst      # sandbox shell
 just bst show --deps all oci/mercury.bst             # full dependency graph
 ```
 
@@ -79,7 +86,7 @@ just update-sources                         # CI-managed sources, kernels, and c
 just update-sources --group bundle          # everything except core junctions
 just update-sources --group core-junctions  # GNOME Build Meta + matching SDK, plugins, patches
 just update-sources --group kernels         # kernel refs
-just update-sources --element mercury/gum.bst
+just update-sources --element apps/gum.bst
 
 git diff
 just validate
@@ -123,7 +130,7 @@ review the kernel source changes and any downstream patches, then build the
 kernel elements (these builds are **not** run by the updater):
 
 ```bash
-just bst build core/linux-fdsdk.bst
+just bst build kernel/linux-fdsdk.bst
 ```
 
 Boot verification is still needed before release. When the FDSDK junction

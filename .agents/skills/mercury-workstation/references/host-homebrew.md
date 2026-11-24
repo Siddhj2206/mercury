@@ -12,7 +12,7 @@ the prefix by hand.
 
 ## When to Use
 
-- Editing `elements/mercury/brew.bst`, `elements/mercury/brew-tarball.bst`, or
+- Editing `elements/apps/brew.bst`, `elements/apps/brew-tarball.bst`, or
   the brew toolchain layers (`elements/oci/layers/brew-toolchain*.bst`)
 - A user-facing report that every `brew` command crashes on an installed system
 - Reviewing changes that touch the toolchain content of the OCI layers
@@ -52,7 +52,7 @@ because on ostree-based targets `/var/home` is the physical directory and
 `/home` is a symlink into it — there, either spelling resolves. Mercury
 inverts the layout (real `/home`), which turns the spelling into the
 bottle-rejection failure above. `/home/linuxbrew` is the spelling that works
-on both layouts; `elements/mercury/sudo-linuxbrew-path.bst` uses it. Fix
+on both layouts; `elements/auth/sudo-linuxbrew-path.bst` uses it. Fix
 upstream `/var/home` regressions via a human, not with a Mercury-side rewrite.
 
 ## Repairing a bricked prefix on an installed system

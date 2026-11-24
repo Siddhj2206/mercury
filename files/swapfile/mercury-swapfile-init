@@ -1,5 +1,5 @@
 #!/bin/sh
-# Create the disk-backed swapfile that zswap fronts (see mercury/zswap-config.bst).
+# Create the disk-backed swapfile that zswap fronts (see system/zswap-config.bst).
 # Idempotent: exits successfully if the swapfile already exists or the disk is
 # too small; removes a partially written file so the next boot retries.
 set -eu

@@ -187,7 +187,7 @@ jobs:
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
           BUILD_SECURE_BOOT_SIGNING: 'true'
-        run: just bst build mercury/secure-boot.bst mercury/signed-modules.bst
+        run: just bst build boot/secure-boot.bst kernel/signed-modules.bst
 
       - name: Compose signed image
         if: env.SIGN == 'true'

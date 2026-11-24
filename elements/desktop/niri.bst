@@ -1955,7 +1955,7 @@ build-depends:
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 - gnome-build-meta.bst:sdk/pango.bst
-- core/mesa-default.bst
+- overrides/mesa-default.bst
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -1968,7 +1968,7 @@ depends:
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 - gnome-build-meta.bst:sdk/pango.bst
-- core/mesa-default.bst
+- overrides/mesa-default.bst
 
 variables:
   strip-binaries: ""

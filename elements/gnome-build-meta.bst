@@ -27,25 +27,25 @@ config:
     freedesktop-sdk.bst: freedesktop-sdk.bst
 
     # Replace the element so the OCI image doesn't have any apps
-    core/meta-gnome-core-apps.bst: core/meta-gnome-core-apps.bst
+    core/meta-gnome-core-apps.bst: overrides/meta-gnome-core-apps.bst
 
     # Override to track bootc ahead of gnome-build-meta upstream (gnome-50 is at v1.12.1)
     # Remove when gnome-50 ships bootc >= v1.15.1 and files are identical
-    gnomeos-deps/bootc.bst: gnomeos-deps/bootc.bst
+    gnomeos-deps/bootc.bst: overrides/bootc.bst
 
     # Install dnsmasq under %{prefix}; see the element for the exit condition
-    freedesktop-sdk-extra.bst:components/dnsmasq.bst: core/dnsmasq.bst
+    freedesktop-sdk-extra.bst:components/dnsmasq.bst: overrides/dnsmasq.bst
 
-    gnomeos-deps/plymouth-gnome-theme.bst: mercury/plymouth-mercury-theme.bst
+    gnomeos-deps/plymouth-gnome-theme.bst: boot/plymouth-mercury-theme.bst
 
     # Replace the element so the OCI image generates Mercury's os-release file
     oci/integration/os-release.bst: oci/os-release.bst
 
     # Kernel modules: signed in publish builds, plain everywhere else
-    gnomeos/initramfs/signed-modules.bst: mercury/unsigned-modules.bst
+    gnomeos/initramfs/signed-modules.bst: kernel/unsigned-modules.bst
     (?):
     - secure_boot_signing == true:
-        gnomeos/initramfs/signed-modules.bst: mercury/signed-modules.bst
+        gnomeos/initramfs/signed-modules.bst: kernel/signed-modules.bst
 
     plugins/buildstream-plugins.bst: plugins/buildstream-plugins.bst
     plugins/buildstream-plugins-community.bst: plugins/buildstream-plugins-community.bst

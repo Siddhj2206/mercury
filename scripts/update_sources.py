@@ -22,58 +22,58 @@ PLUGINS_COMMUNITY = "elements/plugins/buildstream-plugins-community.bst"
 
 # This is also CI's matrix. Keep review notes with the corresponding element.
 TRACKED = [
-    ("mercury/brew.bst", "brew", ""),
-    ("mercury/jetbrains-mono.bst", "jetbrains-mono", ""),
-    ("mercury/efibootmgr.bst", "efibootmgr", ""),
-    ("mercury/distrobox.bst", "distrobox", ""),
-    ("mercury/xdg-terminal-exec.bst", "xdg-terminal-exec", ""),
-    ("gnomeos-deps/bootc.bst", "bootc", "review: core system component"),
-    ("core/dnsmasq.bst", "dnsmasq", "review: core system component"),
-    ("mercury/sudo-rs.bst", "sudo-rs", "review: core system component"),
-    ("mercury/uutils-coreutils.bst", "uutils-coreutils", "review: core system component"),
+    ("apps/brew.bst", "brew", ""),
+    ("fonts/jetbrains-mono.bst", "jetbrains-mono", ""),
+    ("boot/efibootmgr.bst", "efibootmgr", ""),
+    ("virt/distrobox.bst", "distrobox", ""),
+    ("system/xdg-terminal-exec.bst", "xdg-terminal-exec", ""),
+    ("overrides/bootc.bst", "bootc", "review: core system component"),
+    ("overrides/dnsmasq.bst", "dnsmasq", "review: core system component"),
+    ("auth/sudo-rs.bst", "sudo-rs", "review: core system component"),
+    ("system/uutils-coreutils.bst", "uutils-coreutils", "review: core system component"),
     # Despite its name this is a docker source, not a release tarball.
-    ("mercury/brew-tarball.bst", "brew-tarball", ""),
-    # Same git source and track pattern as core/linux-fdsdk.bst, so both move
+    ("apps/brew-tarball.bst", "brew-tarball", ""),
+    # Same git source and track pattern as kernel/linux-fdsdk.bst, so both move
     # to the same stable tag on the same run.
-    ("mercury/hyperv-daemons.bst", "Hyper-V daemons",
-     "review: tools/hv from the core/linux-fdsdk.bst tree"),
-    ("mercury/brlaser.bst", "brlaser", ""),
-    ("mercury/fastfetch.bst", "fastfetch", ""),
-    ("mercury/kanata.bst", "kanata", ""),
-    ("mercury/libtracefs.bst", "libtracefs", ""),
-    ("mercury/libvirt.bst", "libvirt", "review: libvirt and its git submodule"),
-    ("mercury/lm-sensors.bst", "lm-sensors", ""),
+    ("virt/hyperv-daemons.bst", "Hyper-V daemons",
+     "review: tools/hv from the kernel/linux-fdsdk.bst tree"),
+    ("hardware/brlaser.bst", "brlaser", ""),
+    ("apps/fastfetch.bst", "fastfetch", ""),
+    ("apps/kanata.bst", "kanata", ""),
+    ("diagnostics/libtracefs.bst", "libtracefs", ""),
+    ("virt/libvirt.bst", "libvirt", "review: libvirt and its git submodule"),
+    ("hardware/lm-sensors.bst", "lm-sensors", ""),
     # The track pattern keeps the LV2 build on the 1.1 series.
-    ("mercury/lsp-plugins-lv2.bst", "lsp-plugins-lv2", ""),
-    ("mercury/nethogs.bst", "nethogs", ""),
-    ("mercury/nspawn.bst", "nspawn",
+    ("apps/lsp-plugins-lv2.bst", "lsp-plugins-lv2", ""),
+    ("diagnostics/nethogs.bst", "nethogs", ""),
+    ("virt/nspawn.bst", "nspawn",
      "review: CLI, D-Bus, and polkit changes across major versions"),
-    ("mercury/sysstat.bst", "sysstat", ""),
-    ("mercury/ddcutil.bst", "ddcutil",
+    ("diagnostics/sysstat.bst", "sysstat", ""),
+    ("hardware/ddcutil.bst", "ddcutil",
      "review: libddcutil display-detection changes have crashed GPU drivers"),
-    ("mercury/trace-cmd.bst", "trace-cmd", ""),
-    ("mercury/virtiofsd.bst", "virtiofsd", ""),
-    ("mercury/ydotool.bst", "ydotool", ""),
+    ("diagnostics/trace-cmd.bst", "trace-cmd", ""),
+    ("virt/virtiofsd.bst", "virtiofsd", ""),
+    ("apps/ydotool.bst", "ydotool", ""),
     # Branch heads: every update is unreleased code.
-    ("mercury/usbmuxd.bst", "usbmuxd", "review: unreleased branch head"),
+    ("hardware/usbmuxd.bst", "usbmuxd", "review: unreleased branch head"),
     # IBus Rime stack: each library follows its own release tags.
-    ("mercury/glog.bst", "glog", ""),
-    ("mercury/ibus-rime.bst", "ibus-rime", ""),
-    ("mercury/leveldb.bst", "leveldb", ""),
-    ("mercury/librime.bst", "librime",
+    ("input/glog.bst", "glog", ""),
+    ("input/ibus-rime.bst", "ibus-rime", ""),
+    ("input/leveldb.bst", "leveldb", ""),
+    ("input/librime.bst", "librime",
      "review: the librime-lua plugin follows its unreleased branch head"),
-    ("mercury/marisa-trie.bst", "marisa-trie", ""),
-    ("mercury/opencc.bst", "OpenCC", ""),
-    ("mercury/yaml-cpp.bst", "yaml-cpp", ""),
-    ("mercury/tiptop.bst", "tiptop", "review: unreleased branch head"),
+    ("input/marisa-trie.bst", "marisa-trie", ""),
+    ("input/opencc.bst", "OpenCC", ""),
+    ("input/yaml-cpp.bst", "yaml-cpp", ""),
+    ("diagnostics/tiptop.bst", "tiptop", "review: unreleased branch head"),
     # anitya sources: release-monitoring.org names the newest stable release.
-    ("mercury/boost.bst", "boost", ""),
-    ("mercury/nfs-utils.bst", "nfs-utils", ""),
-    ("mercury/nicstat.bst", "nicstat", ""),
-    ("mercury/rpcbind.bst", "rpcbind", ""),
+    ("input/boost.bst", "boost", ""),
+    ("system/nfs-utils.bst", "nfs-utils", ""),
+    ("diagnostics/nicstat.bst", "nicstat", ""),
+    ("system/rpcbind.bst", "rpcbind", ""),
     ("desktop/greetd.bst", "greetd", ""),
     # Private toolchain for Syncthing; any newer Go satisfies its go.mod.
-    ("core/syncthing-go.bst", "Go (Syncthing toolchain)", ""),
+    ("apps/syncthing-go.bst", "Go (Syncthing toolchain)", ""),
     ("plugins/buildstream-plugins.bst", "buildstream-plugins",
      "review: plugin junction bump"),
 ]
@@ -82,7 +82,7 @@ TRACKED = [
 # The kernel ref is owned independently by testing and next. Respect each
 # checkout's track pattern; never widen a stable series or force next to stable.
 KERNELS = [
-    ("core/linux-fdsdk.bst", "Linux kernel",
+    ("kernel/linux-fdsdk.bst", "Linux kernel",
      "review: kernel patches and vendored FDSDK helpers"),
 ]
 
@@ -91,9 +91,9 @@ KERNELS = [
 # instead of on their own: the owner's updater rewrites them.
 DERIVED = {
     # Lockstep with freedesktop-sdk's alsa-lib (matching libasound API).
-    "mercury/alsa-utils.bst": "core-junctions",
+    "hardware/alsa-utils.bst": "core-junctions",
     # Ghostty's minimum_zig_version; Zig breaks compatibility between minors.
-    "mercury/zig.bst": "mercury/ghostty.bst",
+    "apps/zig.bst": "apps/ghostty.bst",
 }
 
 
@@ -103,7 +103,7 @@ DERIVED = {
 # A reason is a decision someone must make before the pin can move, not a
 # missing updater.
 PINNED = {
-    "mercury/fedora-shim.bst": "Secure Boot trust: a shim change alters what firmware will boot",
+    "boot/fedora-shim.bst": "Secure Boot trust: a shim change alters what firmware will boot",
 }
 
 
@@ -149,50 +149,50 @@ class Release:
 
 
 RELEASES = {
-    "mercury/gum.bst": Release(
+    "apps/gum.bst": Release(
         "charmbracelet/gum", r"download/(?P<version>v[0-9.]+)/gum_[0-9.]+_",
         "download/{tag}/gum_{version}_", x86_asset_suffix="_Linux_x86_64.tar.gz"),
-    "mercury/gtk4-layer-shell.bst": Release(
+    "apps/gtk4-layer-shell.bst": Release(
         "wmww/gtk4-layer-shell", r"tags/(?P<version>v[0-9.]+)\.tar\.gz",
         "tags/{tag}.tar.gz"),
-    "mercury/jetbrains-mono-nerd-font.bst": Release(
+    "fonts/jetbrains-mono-nerd-font.bst": Release(
         "ryanoasis/nerd-fonts", r"download/(?P<version>v[^/]+)/", "download/{tag}/"),
     # No versioned GitHub releases (only a rolling "tip"), so read tags. Each
     # release changes the Zig dependency graph, which the generator re-pins.
-    "mercury/ghostty.bst": Release(
+    "apps/ghostty.bst": Release(
         "ghostty-org/ghostty", r"ghostty_releases:(?P<version>[0-9.]+)/", "",
         endpoint="tags?per_page=100",
         query='[.[].name | select(test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$"))]'
               ' | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | last',
-        generator="files/scripts/generate_ghostty_sources.py", derived=("mercury/zig.bst",)),
-    # The source archive vendors Go modules; core/syncthing-go.bst may need to follow.
-    "mercury/syncthing.bst": Release(
+        generator="files/scripts/generate_ghostty_sources.py", derived=("apps/zig.bst",)),
+    # The source archive vendors Go modules; apps/syncthing-go.bst may need to follow.
+    "apps/syncthing.bst": Release(
         "syncthing/syncthing",
         r"download/(?P<version>v[0-9.]+)/syncthing-source-v[0-9.]+\.tar\.gz",
         "download/{tag}/syncthing-source-{tag}.tar.gz"),
-    "mercury/ifuse.bst": Release(
+    "hardware/ifuse.bst": Release(
         "libimobiledevice/ifuse", r"download/(?P<version>[0-9.]+)/ifuse-[0-9.]+\.tar",
         "download/{tag}/ifuse-{version}.tar", tag_pattern=r"[0-9]+\.[0-9]+\.[0-9]+"),
-    "mercury/powertop.bst": Release(
+    "diagnostics/powertop.bst": Release(
         "fenrus75/powertop", r"tags/(?P<version>v[0-9.]+)\.tar\.gz", "tags/{tag}.tar.gz"),
     "system/nx.bst": Release(
         "Siddhj2206/nx", r"download/(?P<version>v[0-9.]+)/nx-v[0-9.]+-fc45-",
         "download/{tag}/nx-{tag}-fc45-", x86_asset_suffix="-x86_64.tar.gz"),
-    "mercury/pam-u2f.bst": Release(
+    "auth/pam-u2f.bst": Release(
         "", r"pam_u2f-(?P<version>[0-9.]+)\.tar\.gz", "pam_u2f-{version}.tar.gz",
         tag_pattern=r"[0-9]+\.[0-9]+\.[0-9]+",
         feed="https://developers.yubico.com/pam-u2f/Releases/atom.xml",
         feed_pattern=r"pam_u2f-(?P<version>[0-9.]+)\.tar\.gz",
         link="https://github.com/Yubico/pam-u2f/releases/tag/pam_u2f-{version}"),
     # The font archive and its fontconfig, license, and audit files.
-    "mercury/nerd-fonts-symbols.bst": Release(
+    "fonts/nerd-fonts-symbols.bst": Release(
         "ryanoasis/nerd-fonts", r"(?<=/)(?P<version>v[0-9]+\.[0-9]+\.[0-9]+)(?=/)", "{tag}",
         urls=4),
     # The binary and its three shell completions; the ARM binary stays paused.
-    "mercury/tealdeer.bst": Release(
+    "apps/tealdeer.bst": Release(
         "tealdeer-rs/tealdeer", r"download/(?P<version>v[0-9.]+)/", "download/{tag}/",
         urls=4, skip="aarch64"),
-    "mercury/open-vm-tools.bst": Release(
+    "virt/open-vm-tools.bst": Release(
         "vmware/open-vm-tools",
         r"download/(?P<version>stable-[0-9.]+)/open-vm-tools-[0-9.]+-[0-9]+\.tar\.gz",
         "download/{tag}/{asset}", tag_pattern=r"stable-[0-9]+\.[0-9]+\.[0-9]+",
@@ -442,12 +442,12 @@ def sync_alsa_utils(upstream: str) -> None:
                   and version_key(v) <= version_key(lib[1])]
     if not candidates:
         raise ValueError(f"No alsa-utils release for alsa-lib {lib[1]}")
-    path = ROOT / "elements/mercury/alsa-utils.bst"
+    path = ROOT / "elements/hardware/alsa-utils.bst"
     original = path.read_text()
     updated, _ = rewrite_release(original, release, max(candidates, key=version_key))
     if updated != original:
         path.write_text(updated)
-        track("mercury/alsa-utils.bst")
+        track("hardware/alsa-utils.bst")
 
 
 ALSA_UTILS = Release(
@@ -476,7 +476,7 @@ def update_core() -> None:
     if count != 1:
         raise ValueError("Missing local freedesktop-sdk ref")
     if path.read_text() != text:
-        print("REVIEW: FDSDK changed. Compare core/linux-fdsdk.bst, patches/linux, "
+        print("REVIEW: FDSDK changed. Compare kernel/linux-fdsdk.bst, patches/linux, "
               "files/linux/config-utils.sh and files/linux/fdsdk-config.sh with the new SDK; "
               "preserve Mercury's local kernel configuration.")
     path.write_text(text)

@@ -13,7 +13,7 @@ Package software as BuildStream elements. Mercury builds natively from source an
 ## When to Use
 
 - Adding a new native CLI tool, service, or library to Mercury
-- Updating an existing package element under `elements/mercury/` or `elements/core/`
+- Updating an existing package element under `elements/` (see the layout in `docs/build.md`)
 - Generating offline crate sources for Rust programs
 - Removing deprecated software and cleaning up dependency stacks
 
@@ -28,8 +28,8 @@ Package software as BuildStream elements. Mercury builds natively from source an
 
 1. **Locate Reference Pattern**: Identify an existing element with the same toolchain (Go, Rust, Zig, Meson, CMake, Autotools, or binary).
 2. **Verify Upstream**: Confirm upstream source, open-source license, and release tag. Mercury ships x86_64 only — no aarch64 requirement.
-3. **Declare Element**: Create `elements/mercury/<name>.bst` or under the appropriate subdirectory.
-4. **Wire Dependencies**: Wire into `elements/mercury/deps.bst` (the aggregator stack) or the relevant layer composition element.
+3. **Declare Element**: Create `elements/<category>/<name>.bst` in the matching directory (`apps/`, `hardware/`, `system/`, …; layout in `docs/build.md`). Elements that replace an upstream element through a junction override go in `overrides/`.
+4. **Wire Dependencies**: Wire into `elements/deps.bst` (the aggregator stack) or the relevant layer composition element.
 5. **Generate Offline Sources (Rust)**:
    ```bash
    python3 files/scripts/generate_cargo_sources.py path/to/Cargo.lock
@@ -54,7 +54,7 @@ Package software as BuildStream elements. Mercury builds natively from source an
 
 When deleting a package:
 1. Trace reverse dependencies with `just bst show --deps all oci/mercury.bst | grep <element>`.
-2. Remove entry from `elements/mercury/deps.bst` and layer compose elements.
+2. Remove entry from `elements/deps.bst` and layer compose elements.
 3. Delete static files, systemd unit symlinks, and any patches in `patches/`.
 4. Run `just validate` to confirm the graph is sound.
 
@@ -80,12 +80,11 @@ When deleting a package:
 - [ ] Element builds cleanly via `just bst build mercury/<name>.bst`
 - [ ] No network access is attempted during sandbox compilation
 - [ ] Installed binaries, configs, and licenses land in standard `/usr` hierarchy
-- [ ] Element is added to `elements/mercury/deps.bst`
+- [ ] Element is added to `elements/deps.bst`
 - [ ] Element registered in `scripts/update_sources.py`
 
 ## References
 
 - [`docs/build.md`](../../../docs/build.md)
 - [`docs/pr-checklist.md`](../../../docs/pr-checklist.md)
-- [`elements/mercury/`](../../../elements/mercury/)
-- [`elements/core/`](../../../elements/core/)
+- [`elements/deps.bst`](../../../elements/deps.bst)

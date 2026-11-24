@@ -18,4 +18,4 @@ depends:
 - secure_boot_signing == true:
     depends:
       (>):
-      - mercury/secure-boot.bst
+      - boot/secure-boot.bst

@@ -67,13 +67,13 @@ is configured for the gstreamer backend (fdsdk has gstreamer, no ffmpeg).
 source-first needs every dependency vendored as `go_module` sources —
 `dms/core` alone has ~35 direct deps including tailscale.com (~hundreds
 of modules transitively), and several need go ≥ 1.27 (fdsdk ships 1.25;
-`core/syncthing-go.bst` has 1.26.6). The repo has no go-module generator
+`apps/syncthing-go.bst` has 1.26.6). The repo has no go-module generator
 script and `modules.txt`/`git-ref` entries can't be hand-derived safely.
 Upstream's own distro packages ship these same signed release binaries.
 Dakota already accepts this pattern (`mercury/tailscale.bst` ships the
 upstream tarball). To move source-first later: write a
 `generate_go_sources.py` alongside `generate_cargo_sources.py` and a
-private go ≥ 1.27 toolchain element modeled on `core/syncthing-go.bst`.
+private go ≥ 1.27 toolchain element modeled on `apps/syncthing-go.bst`.
 
 ## Junction components assumed to exist
 

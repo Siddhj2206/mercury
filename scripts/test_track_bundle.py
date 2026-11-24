@@ -113,7 +113,7 @@ class DescribeTests(unittest.TestCase):
         diff = ("   ref:\n-    version: 1.90.0\n-    sha256sum: " + "a" * 64 +
                 "\n+    version: 1.92.0\n+    sha256sum: " + "b" * 64 + "\n")
         u = track_bundle.describe_element_update(
-            "boost", "chore(deps): update boost", "elements/mercury/boost.bst",
+            "boost", "chore(deps): update boost", "elements/input/boost.bst",
             "sources:\n- kind: anitya\n  project-id: 6845\n", diff)
         self.assertEqual(u.title, "chore(deps): update boost: 1.90.0 -> 1.92.0")
         self.assertEqual(u.change, "`1.90.0` → `1.92.0`")

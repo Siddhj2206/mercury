@@ -30,7 +30,7 @@ sources:
   directory: conf
 
 build-depends:
-- core/sandbox-tools.bst
+- build-tools/sandbox-tools.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/gzip.bst
 

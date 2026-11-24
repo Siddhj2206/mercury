@@ -3,11 +3,11 @@ kind: stack
 depends:
   - desktop/deps.bst
   - system/deps.bst
-  - mercury/deps.bst
+  - deps.bst
   - oci/os-release.bst
 
   - freedesktop-sdk.bst:components/linux-firmware.bst
-  - core/ntsync-modules-load.bst
+  - kernel/ntsync-modules-load.bst
   # The kernel, modules and initramfs ship in the boot layer
   # (oci/layers/boot.bst), so this stack never depends on secure_boot_signing.
 
@@ -33,7 +33,7 @@ public:
       - printf '# zram disabled; Mercury swaps via zswap + /var/swap/swapfile\n' > /usr/lib/systemd/zram-generator.conf
       # Drop gnomeos-deps/zswap-generator.bst. Its default swap file lives on
       # the read-only root at /swap and would duplicate /var/swap/swapfile.
-      # The watermark sysctls it ships live in mercury/zswap-config.bst.
+      # The watermark sysctls it ships live in system/zswap-config.bst.
       - rm -rf /usr/lib/systemd/system-generators/zswap-generator /usr/lib/zswap-generator /usr/lib/sysctl.d/50-zswap.conf
 
       - rm -rfv /boot /run

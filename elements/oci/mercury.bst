@@ -8,7 +8,7 @@ kind: script
 build-depends:
   # Shell and coreutils for the commands below; runtime-minimal carries
   # no shell since freedesktop-sdk 26.08.
-  - core/sandbox-tools.bst
+  - build-tools/sandbox-tools.bst
   - gnome-build-meta.bst:freedesktop-sdk.bst:components/oci-builder.bst
   - filename: oci/mercury-base.bst
     config:

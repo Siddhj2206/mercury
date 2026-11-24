@@ -216,7 +216,7 @@ jobs:
           git checkout -B auto/track-core-junctions origin/main
           # patch-sync adds and removes files, so stage first and test the index.
           git add elements/gnome-build-meta.bst elements/freedesktop-sdk.bst elements/plugins/buildstream-plugins-community.bst patches/freedesktop-sdk patches/freedesktop-sdk.manifest.json \
-            elements/mercury/vte.bst elements/mercury/alsa-utils.bst
+            elements/hardware/alsa-utils.bst
           git diff --cached --quiet && { echo "No junction updates"; exit 0; }
           git commit -m "chore(deps): update core junctions (gnome-build-meta + freedesktop-sdk)"
           git push --force-with-lease origin auto/track-core-junctions
@@ -230,6 +230,6 @@ jobs:
               --base main \
               --head auto/track-core-junctions \
               --title "chore(deps): update core junctions (gnome-build-meta + freedesktop-sdk)" \
-              --body "Updates \`gnome-build-meta.bst\`, derives the \`freedesktop-sdk.bst\`, \`plugins/buildstream-plugins-community.bst\`, \`mercury/vte.bst\` and \`mercury/alsa-utils.bst\` pins from it, and re-syncs \`patches/freedesktop-sdk\`. Manual review required — junction bumps can break downstream elements.")
+              --body "Updates \`gnome-build-meta.bst\`, derives the \`freedesktop-sdk.bst\`, \`plugins/buildstream-plugins-community.bst\`, \`mercury/vte.bst\` and \`hardware/alsa-utils.bst\` pins from it, and re-syncs \`patches/freedesktop-sdk\`. Manual review required — junction bumps can break downstream elements.")
             echo "PR: $PR_URL"
           fi

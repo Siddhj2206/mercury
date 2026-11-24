@@ -5,7 +5,7 @@ Ghostty builds offline, so every package in its dependency graph must be a
 BuildStream source. Upstream publishes that graph for packagers as
 build.zig.zon.json in the release tarball; this pins each archive by sha256 and
 rewrites the release URL, the generated source block, and the version string.
-Zig breaks compatibility between minor releases, so mercury/zig.bst follows the
+Zig breaks compatibility between minor releases, so apps/zig.bst follows the
 release's minimum_zig_version: the newest patch release of that minor series.
 
 Usage: generate_ghostty_sources.py <version> [element]
@@ -23,8 +23,8 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-ELEMENT = ROOT / "elements/mercury/ghostty.bst"
-ZIG_ELEMENT = ROOT / "elements/mercury/zig.bst"
+ELEMENT = ROOT / "elements/apps/ghostty.bst"
+ZIG_ELEMENT = ROOT / "elements/apps/zig.bst"
 ALIASES = ROOT / "include/aliases.yml"
 RELEASE_URL = "https://release.files.ghostty.org/{version}/ghostty-{version}.tar.gz"
 ZIG_INDEX = "https://ziglang.org/download/index.json"
@@ -114,7 +114,7 @@ def pin_zig(text: str, version: str, sha: str) -> str:
     text, count = ZIG_SOURCE.subn(
         lambda m: f"{m[1]}{version}{m[3]}{version}{m[4]}{sha}", text)
     if count != 1:
-        raise ValueError("Expected exactly one x86_64 Zig tarball in mercury/zig.bst")
+        raise ValueError("Expected exactly one x86_64 Zig tarball in apps/zig.bst")
     return text
 
 

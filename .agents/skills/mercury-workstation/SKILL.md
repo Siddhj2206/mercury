@@ -12,7 +12,7 @@ Mercury runs Homebrew directly on the host rather than in a container, with pers
 
 ## When to Use
 
-- Editing host Homebrew packaging elements (`elements/mercury/brew.bst`, `brew-tarball.bst`) or the brew toolchain layers (`elements/oci/layers/brew-toolchain*.bst`)
+- Editing host Homebrew packaging elements (`elements/apps/brew.bst`, `brew-tarball.bst`) or the brew toolchain layers (`elements/oci/layers/brew-toolchain*.bst`)
 - Managing workstation services or systemd unit presets owned by BST elements and their source files
 - Diagnosing broken host brew prefixes or bottle rejection errors (see `references/host-homebrew.md`)
 
@@ -39,7 +39,7 @@ Mercury runs Homebrew directly on the host rather than in a container, with pers
 - **Prefix Spelling Invariant**: Invoke brew strictly through `/home/linuxbrew/.linuxbrew/bin/brew`. The `/var/home` spelling breaks bottle prefix detection and forces broken source builds.
 - **GNU Make Invariant**: The image must supply GNU Make in `/usr/bin` alongside GCC. Homebrew's internal PATH filter strips all other locations during native gem builds. Mercury composes this via the `oci/layers/brew-toolchain*.bst` layers.
 - **Persistent State Invariant**: `/home/linuxbrew/.linuxbrew` is persistent user data. Reboots and image updates will not repair corrupted gems.
-- **No ublue-os Writes**: Mercury consumes upstream `ublue-os/brew` artifacts (`mercury/brew.bst`, `mercury/brew-tarball.bst`). Fix upstream regressions via a human, never by writing to `ublue-os/*`.
+- **No ublue-os Writes**: Mercury consumes upstream `ublue-os/brew` artifacts (`apps/brew.bst`, `apps/brew-tarball.bst`). Fix upstream regressions via a human, never by writing to `ublue-os/*`.
 
 ## Common Rationalizations
 
@@ -66,6 +66,6 @@ Mercury runs Homebrew directly on the host rather than in a container, with pers
 ## References
 
 - [`references/host-homebrew.md`](references/host-homebrew.md)
-- [`elements/mercury/brew.bst`](../../../elements/mercury/brew.bst)
-- [`elements/mercury/brew-tarball.bst`](../../../elements/mercury/brew-tarball.bst)
+- [`elements/apps/brew.bst`](../../../elements/apps/brew.bst)
+- [`elements/apps/brew-tarball.bst`](../../../elements/apps/brew-tarball.bst)
 - [`elements/oci/layers/brew-toolchain.bst`](../../../elements/oci/layers/brew-toolchain.bst)

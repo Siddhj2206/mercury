@@ -10,9 +10,9 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ELEMENT = ROOT / "elements/mercury/libvirt.bst"
+ELEMENT = ROOT / "elements/virt/libvirt.bst"
 # Keep this aligned with the management drivers the element's install block
-# verifies (the `for driver in ...` loop in elements/mercury/libvirt.bst).
+# verifies (the `for driver in ...` loop in elements/virt/libvirt.bst).
 DRIVERS = ("qemu", "interface", "network", "nodedev", "nwfilter", "secret", "storage", "proxy")
 POLICIES = (
     "usr/share/polkit-1/actions/org.libvirt.unix.policy",

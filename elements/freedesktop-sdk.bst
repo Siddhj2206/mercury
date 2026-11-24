@@ -61,7 +61,7 @@ config:
     # not the Flatpak runtime, as its easy to bundle when needed.
     components/zenity.bst: gnome-build-meta.bst:void/zenity.bst
 
-    components/linux-module-cert.bst: core/linux-module-cert.bst
+    components/linux-module-cert.bst: kernel/linux-module-cert.bst
     components/_private/systemd-base.bst: gnome-build-meta.bst:core-deps/systemd-base.bst
     components/systemd.bst: gnome-build-meta.bst:core-deps/systemd.bst
     components/systemd-ukify.bst: gnome-build-meta.bst:core-deps/systemd-ukify.bst
@@ -79,6 +79,6 @@ config:
     # Keep kernel selection at the junction boundary so every consumer
     # (unsigned-modules, initramfs) resolves the same
     # kernel and module/kernel co-versioning holds by construction.
-    components/linux.bst: core/linux-fdsdk.bst
+    components/linux.bst: kernel/linux-fdsdk.bst
 
-    vm/mesa-default.bst: core/mesa-default.bst
+    vm/mesa-default.bst: overrides/mesa-default.bst
