@@ -1,5 +1,5 @@
 # Installs /usr/share/flatpak/preinstall.d lists from Flathub. Started by its
-# timer, never by multi-user.target, so it stays off the boot path (17.3).
+# timer, never by multi-user.target, so it stays off the boot path.
 [Unit]
 Description=Install Mercury's default Flatpaks
 Wants=network-online.target

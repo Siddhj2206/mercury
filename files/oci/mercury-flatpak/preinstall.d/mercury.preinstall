@@ -1,8 +1,7 @@
 # Flatpaks installed by mercury-flatpak-preinstall (ported from neptuno flatpaks/default.preinstall).
 # Format: GKeyFile, one [Flatpak Preinstall <app-id>] section per app.
-# `just validate-flatpaks` checks every id and branch against Flathub.
 
-# --- GNOME apps (doc/product.md 5.5). Files, Text Editor and Disks are RPMs.
+# --- GNOME apps
 [Flatpak Preinstall net.nokyan.Resources]
 Branch=stable
 

@@ -1,5 +1,6 @@
 # List available commands
 [group('info')]
+[doc('List available recipes')]
 default:
     @just --list
 
@@ -37,7 +38,8 @@ export OCI_IMAGE_VERSION := env("OCI_IMAGE_VERSION", "")
 # Usage: just bst build oci/mercury.bst
 #        just bst show oci/mercury.bst
 #        BST_FLAGS="--config /src/buildstream-ci.conf" just bst build oci/mercury.bst
-[group('dev')]
+[group('build')]
+[doc('Run bst inside the pinned bst2 container')]
 bst *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -78,7 +80,8 @@ bst *ARGS:
 # The private key stays in the gitignored files/boot-keys/private/ and goes
 # into the publish CI secret. `just secure-boot-keygen test` makes a
 # throwaway pair for local signing builds; never commit a test certificate.
-[group('dev')]
+[group('maintain')]
+[doc('Generate a Secure Boot key pair (release or test)')]
 secure-boot-keygen kind="release":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -118,7 +121,8 @@ secure-boot-keygen kind="release":
     echo "Private key: $key (never commit; store it as the MERCURY_SECURE_BOOT_KEY secret)"
 
 # Update CI-managed source pins locally; never commit, push, or open a PR.
-[group('dev')]
+[group('maintain')]
+[doc('Update CI-managed source pins locally (never commits)')]
 [positional-arguments]
 update-sources *FLAGS:
     python3 scripts/update_sources.py "$@"
@@ -126,7 +130,8 @@ update-sources *FLAGS:
 # The ONLY recipe CI runs directly (.github/workflows/validate.yml).
 # New python test suites must be registered here to be enforced; anything
 # added to `validate` below runs on developer machines only.
-[group('dev')]
+[group('check')]
+[doc('Run the Python test suites CI enforces')]
 check-publish-workflow:
     python3 -m unittest scripts.test_ownership_metadata scripts.test_ownership_oci scripts.test_ownership_overlay scripts.test_compare_oci_layers scripts.test_ownership_recipes
     python3 -m unittest scripts.test_track_bundle scripts.test_update_sources
@@ -135,7 +140,8 @@ check-publish-workflow:
 # Local convenience wrapper. CI does NOT run this recipe; it runs
 # `check-publish-workflow` plus its own bst show steps. Do not register
 # CI-facing checks here.
-[group('dev')]
+[group('check')]
+[doc('Run the CI test suites plus bst show of the full graph')]
 validate:
     just check-publish-workflow
     just bst show --deps all oci/mercury.bst
@@ -144,7 +150,8 @@ validate:
 # manifest, offline. The manifest is written by `just patch-sync` (the only
 # step that contacts gitlab.gnome.org), so validate never depends on
 # upstream uptime.
-[group('dev')]
+[group('maintain')]
+[doc('Check the fdsdk patch queue matches its manifest (offline)')]
 patch-drift-check:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -193,7 +200,8 @@ patch-drift-check:
 # Re-sync patches/freedesktop-sdk (and its manifest) from gnome-build-meta
 # at the pinned junction sha. The one place upstream is contacted; run it
 # after every gnome-build-meta junction bump.
-[group('dev')]
+[group('maintain')]
+[doc('Re-sync patches/freedesktop-sdk from gnome-build-meta')]
 patch-sync:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -245,6 +253,7 @@ patch-sync:
 #
 # Usage: just build   # builds oci/mercury.bst and exports {{image_name}}:{{image_tag}}
 [group('build')]
+[doc('Build oci/mercury.bst and load it into podman')]
 build:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -263,6 +272,7 @@ build:
 # Uses SUDO_CMD to handle root vs non-root: podman's rootful
 # containers-storage needs sudo for any user other than root.
 [group('build')]
+[doc('Check out the built OCI image from BuildStream into podman')]
 export:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -369,7 +379,8 @@ export:
     $SUDO_CMD podman images | grep -E "{{image_name}}|REPOSITORY" || true
 
 # Push exported image to a local zot registry for lab testing.
-[group('dev')]
+[group('build')]
+[doc('Push the exported image to a local zot registry')]
 push-local registry="localhost:5000":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -398,12 +409,13 @@ push-local registry="localhost:5000":
 # ── Clean ─────────────────────────────────────────────────────────────
 # Remove generated artifacts (disk image, OVMF vars, build output).
 [group('build')]
+[doc('Remove generated disk images, OVMF vars and build output')]
 clean:
     rm -f bootable.raw .ovmf-vars.fd
     rm -rf .build-out
 
-# ── bootc helper ─────────────────────────────────────────────────────
-[group('dev')]
+[group('build')]
+[doc('Run a bootc command from the built image (privileged)')]
 bootc *ARGS:
     sudo podman run \
         --rm --privileged --pid=host \
@@ -416,7 +428,8 @@ bootc *ARGS:
 
 # ── Generate bootable disk image ─────────────────────────────────────
 # Installs the loaded {{image_name}}:{{image_tag}} image to a disk image.
-[group('test')]
+[group('vm')]
+[doc('Install the built image to a raw disk image')]
 generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -456,7 +469,8 @@ generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
 # Boot the raw disk image.
 # If qemu-system-x86_64 is installed, runs natively (UEFI/OVMF).
 # Otherwise, falls back to running via docker.io/qemux/qemu-docker.
-[group('test')]
+[group('vm')]
+[doc('Boot the raw disk image in QEMU')]
 boot-vm $base_dir=base_dir:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -578,7 +592,8 @@ boot-vm $base_dir=base_dir:
 
 # ── Convert to qcow2 ──────────────────────────────────────────────────
 # Convert raw disk image to qcow2 format for better performance/compat.
-[group('test')]
+[group('vm')]
+[doc('Convert the raw disk image to qcow2')]
 convert-to-qcow2 $base_dir=base_dir:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -610,7 +625,8 @@ convert-to-qcow2 $base_dir=base_dir:
 # The full end-to-end: build the OCI image, install it to a bootable
 # disk, and launch it in a QEMU VM. One command to rule them all.
 # Uses charm.sh gum for styled output when available.
-[group('test')]
+[group('vm')]
+[doc('Build, install to disk and boot in QEMU, end to end')]
 show-me-the-future:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -733,21 +749,25 @@ show-me-the-future:
 # ── Chunkah component ownership metadata ─────────────────────────────
 # Offline tests never pull images. The real BuildStream fixture is opt-in and
 # intentionally has its own recipe so CI's unit gate has no Podman/network need.
-[group('test')]
+[group('ownership')]
+[doc('Run the real-BuildStream ownership fixture test')]
 test-ownership-buildstream:
     MERCURY_OWNERSHIP_REAL_BST=1 python3 -m unittest scripts.test_ownership_buildstream -v
 
 # Real non-root/sudo export in a disposable container; never changes host sudo.
-[group('test')]
+[group('ownership')]
+[doc('Test non-root export in a disposable container')]
 test-ownership-export:
     MERCURY_OWNERSHIP_EXPORT_TEST=1 python3 -m unittest scripts.test_ownership_export -v
 
 # Isolated local CAS transfer and publisher test; shared BST cache is read-only.
-[group('test')]
+[group('ownership')]
+[doc('Test cold-cache CAS transfer between two refs')]
 test-ownership-cold-cache base_ref other_ref output:
     python3 scripts/test_ownership_cold_cache.py "{{base_ref}}" "{{other_ref}}" "{{output}}"
 
-[group('test')]
+[group('ownership')]
+[doc('Validate a rootfs against its ownership sidecar')]
 ownership-validate root sidecar arch="" variant="" manifest="/tmp/mercury-ownership-manifest.tsv":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -756,12 +776,14 @@ ownership-validate root sidecar arch="" variant="" manifest="/tmp/mercury-owners
     [ -z "{{variant}}" ] || args+=(--variant "{{variant}}")
     python3 scripts/ownership_metadata.py "${args[@]}"
 
-[group('test')]
+[group('ownership')]
+[doc('Compare legacy and manifest-based ownership output')]
 ownership-compare legacy manifest output:
     python3 scripts/ownership_metadata.py compare --legacy "{{legacy}}" --manifest "{{manifest}}" --output "{{output}}"
 
 # Compare equally compressed local OCI layouts, without registry publication.
-[group('test')]
+[group('ownership')]
+[doc('Compare two local OCI layouts layer by layer')]
 ownership-layer-compare old new output:
     python3 -m scripts.compare_oci_layers "{{old}}" "{{new}}" "{{output}}"
 
@@ -772,6 +794,8 @@ ownership-layer-compare old new output:
 # remains required because chunkah's rustix xattr backend uses raw syscalls that
 # bypass LD_PRELOAD, so xattrs must be physically applied to a writable overlay.
 # See also: projectbluefin/dakota#231.
+[group('build')]
+[doc('Rechunk an image into content-addressed layers with chunkah')]
 chunkify image_ref:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -958,7 +982,8 @@ _ensure-bcvk:
 # Boot the built image instantly in an ephemeral VM via bcvk.
 # No disk image needed -- boots directly from the container via virtiofs.
 # Requires: bcvk, qemu-kvm, virtiofsd (sudo dnf install bcvk qemu-kvm virtiofsd)
-[group('test')]
+[group('vm')]
+[doc('Boot the built image in an ephemeral bcvk VM')]
 boot-fast: _ensure-bcvk
     #!/usr/bin/env bash
     set -euo pipefail
@@ -987,7 +1012,8 @@ boot-fast: _ensure-bcvk
 # Interactive debug session — boots the image, captures serial console and systemd
 # journal on exit. Artifacts are saved to ./debug-session/ for bug reports.
 # Requires: bcvk, qemu-kvm, virtiofsd
-[group('test')]
+[group('vm')]
+[doc('Boot interactively and save console + journal to ./debug-session')]
 debug-session: _ensure-bcvk
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1106,7 +1132,8 @@ debug-session: _ensure-bcvk
 # Automated boot smoke test — boots the image, verifies graphical.target is reached, exits 0/1.
 # Non-interactive. Intended for CI and agent verification loops.
 # Requires: bcvk, qemu-kvm, virtiofsd
-[group('test')]
+[group('vm')]
+[doc('Boot the image headless and check graphical.target (CI smoke test)')]
 boot-test: _ensure-bcvk
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1190,6 +1217,7 @@ boot-test: _ensure-bcvk
 
 # Inspect the built bootc image.
 [group('info')]
+[doc('Inspect the built bootc image')]
 inspect: _ensure-bcvk
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1215,7 +1243,8 @@ inspect: _ensure-bcvk
 #   jq '.spdxVersion' mercury.spdx.json       # verify SPDX-2.3
 #   jq '.packages | length' mercury.spdx.json  # expect ~1100+
 #   jq -r '.packages[].name' mercury.spdx.json | grep -i "gtk\|systemd"
-[group('test')]
+[group('check')]
+[doc('Generate an SPDX SBOM for the built image')]
 sbom:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1303,7 +1332,8 @@ sbom:
 # runs after signing. Requires: cosign.
 # Usage: just verify                            (defaults to :latest)
 #        just verify ghcr.io/siddhj2206/mercury:2026.11.22
-[group('test')]
+[group('check')]
+[doc('Verify the cosign signature of a published image')]
 verify image_ref="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1320,8 +1350,8 @@ verify image_ref="":
         --certificate-oidc-issuer https://token.actions.githubusercontent.com \
         "${IMAGE}" && echo "PASS: signature valid"
 
-# ── Lint ─────────────────────────────────────────────────────────────
-[group('test')]
+[group('check')]
+[doc('Run bootc container lint on the built image')]
 lint:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1341,7 +1371,8 @@ lint:
 # Assert the image's swap architecture: zram disabled, zswap kargs present,
 # swapfile units wired. Guards against the #1131 overlap regression where the
 # upstream zram-generator config silently won over the intended override.
-[group('test')]
+[group('check')]
+[doc('Assert zram is off, zswap kargs present, swapfile wired')]
 swap-audit:
     #!/usr/bin/env bash
     set -euo pipefail

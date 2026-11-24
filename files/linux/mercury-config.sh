@@ -1,6 +1,4 @@
-# Shared Mercury kernel capabilities, applied after fdsdk-config.sh (and the
-# OGC fragments on gaming builds). Keep this file shared with next: kernel
-# versions and vendored upstream configuration remain stream-specific.
+# Mercury kernel capabilities, applied after fdsdk-config.sh.
 # Uses config-utils.sh enable/module so every option lands in
 # expected-configs and the post-olddefconfig gate verifies it survived.
 
@@ -83,9 +81,8 @@ if [ "${ARCH}" = x86_64 ]; then
   enable STEAM_FF
   enable NVIDIA_SHIELD_FF
 
-  # sched_ext, which the OGC kernel already ships; this brings the main
-  # kernel level with it. Binder is not requested here: main ships fdsdk's
-  # Rust binder and OGC the C one, and the two are mutually exclusive.
+  # sched_ext, for scx userspace schedulers. Binder is not requested here:
+  # fdsdk already ships the Rust binder, which excludes the C one.
   enable SCHED_CLASS_EXT
 
   # Userspace interfaces apps expect: casefolding filesystems (Proton),
@@ -165,9 +162,8 @@ if [ "${ARCH}" = x86_64 ]; then
   enable BLK_SED_OPAL
 fi
 
-# The OGC fragment requests the timer trigger, but olddefconfig drops it
-# unless IIO_SW_TRIGGER is enabled. Register both as expected capabilities
-# on both kernels; these modules do not create or activate a sensor trigger.
+# The hrtimer IIO trigger needs IIO_SW_TRIGGER or olddefconfig drops it.
+# These modules do not create or activate a sensor trigger.
 module IIO_SW_TRIGGER
 module IIO_HRTIMER_TRIGGER
 
@@ -310,9 +306,9 @@ enable MODULE_COMPRESS_ZSTD
 enable MODULE_COMPRESS_ALL
 
 # Broad hardware coverage so unusual hardware works without per-device
-# requests; unused modules never load. Excludes test drivers, OGC's unset
-# options and INPUT_PCSPKR (collides with fdsdk's SND_PCSP). Each line must
-# survive olddefconfig on both kernels or the expected-configs gate fails.
+# requests; unused modules never load. Excludes test drivers and
+# INPUT_PCSPKR (collides with fdsdk's SND_PCSP). Each line must survive
+# olddefconfig or the expected-configs gate fails.
 # Side effect: HYPERV_STORAGE and I3C_OR_I2C become modules (the initramfs
 # carries drivers/scsi). x86_64 only.
 if [ "${ARCH}" = x86_64 ]; then

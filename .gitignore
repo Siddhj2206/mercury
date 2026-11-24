@@ -17,11 +17,6 @@ debug-session/
 .build-ownership/
 .build-ownership-source/
 
-# Local AI agent state (opencode sessions, drafts)
-# Skills are committed; everything else is ignored
-.opencode/*
-!.opencode/skills/
-
 # Git worktrees
 .worktrees/
 files/xattr-db/
@@ -37,6 +32,4 @@ files/boot-keys/private/*
 
 # Local build/boot-test outputs
 .build-logs/
-bootable.raw
 bootable.qcow2
-.ovmf-vars.fd

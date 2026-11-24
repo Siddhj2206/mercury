@@ -1,4 +1,4 @@
-# Replaces flatpak-appstream-refresh.service at boot (17.3): appstream data only
+# Replaces flatpak-appstream-refresh.service at boot: appstream data only
 # matters when an app store is opened.
 [Unit]
 Description=Refresh Flatpak appstream data

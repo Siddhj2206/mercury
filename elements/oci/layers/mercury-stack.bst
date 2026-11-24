@@ -28,7 +28,7 @@ public:
 
       # Overwrite the zram-generator config from gnomeos-deps/zram-generator.bst.
       # An element-level override loses the staging-order overlap (see
-      # .agents/skills/dakota-buildstream/SKILL.md); integration commands run after all staging,
+      # .agents/skills/mercury-buildstream/SKILL.md); integration commands run after all staging,
       # so this is the deterministic winner. No [zramN] section = no zram device.
       - printf '# zram disabled; Mercury swaps via zswap + /var/swap/swapfile\n' > /usr/lib/systemd/zram-generator.conf
       # Drop gnomeos-deps/zswap-generator.bst. Its default swap file lives on

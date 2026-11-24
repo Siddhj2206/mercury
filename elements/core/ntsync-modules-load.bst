@@ -1,4 +1,4 @@
-# Load ntsync at boot: the OGC kernel builds CONFIG_NTSYNC=m and
+# Load ntsync at boot: the fdsdk kernel builds CONFIG_NTSYNC=m and
 # Wine/Proton probe /dev/ntsync directly; without this nothing loads it.
 kind: manual
 

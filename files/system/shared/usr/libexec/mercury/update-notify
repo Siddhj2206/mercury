@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# Notify about system updates without nagging (doc/product.md section 10):
+# Notify about system updates without nagging:
 #   - a staged image sitting unbooted for more than STAGED_DAYS
 #   - nothing staged and the booted image older than STALE_DAYS, which means
 #     the daily build or the update timer has been failing

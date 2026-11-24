@@ -14,10 +14,8 @@ description: |
 # kernel's fetched tree and source cache are reused. scripts/update_sources.py
 # tracks this element alongside the kernel with the same pattern; keep url,
 # track and exclude identical to the kernel's (scripts/test_update_sources.py
-# enforces it). Gaming variants ship the OGC kernel instead; one tree serves
-# both because these daemons talk to the kernel only through stable userspace
-# ABI (the vmbus/hv_kvp and vmbus/hv_vss misc devices and uio_hv_generic),
-# which is why distributions ship one tools/hv build for every kernel.
+# enforces it). The daemons talk to the kernel only through stable userspace
+# ABI (the vmbus/hv_kvp and vmbus/hv_vss misc devices and uio_hv_generic).
 sources:
 - kind: git_repo
   url: kernel:linux/kernel/git/stable/linux.git
