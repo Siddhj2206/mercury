@@ -1,0 +1,5 @@
+# bootc composefs backend root setup (bootc-setup-root-conf.toml(5)).
+# Its presence, with no ostree prepare-root.conf in the image, makes
+# `bootc install` use the composefs backend (docs/adr/0001). Every option is
+# at its default: persistent /etc and /var bind-mounted from the deployment
+# state directory.

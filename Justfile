@@ -456,7 +456,6 @@ generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
         --via-loopback /data/bootable.raw \
         --filesystem "${filesystem}" \
         --wipe \
-        --composefs-backend \
         --bootloader systemd \
         --karg systemd.firstboot=no \
         --karg splash \
@@ -595,6 +594,65 @@ boot-vm $base_dir=base_dir:
 
 # ── Convert to qcow2 ──────────────────────────────────────────────────
 # Convert raw disk image to qcow2 format for better performance/compat.
+[group('vm')]
+[doc('Install the image to a disk with bootc, boot it in QEMU, check composefs + graphical.target')]
+install-test $base_dir=base_dir:
+    #!/usr/bin/env bash
+    # The real install path: unlike boot-test (bcvk ephemeral, no install),
+    # this runs `bootc install to-disk` with the image's own defaults
+    # (filesystem, storage backend) and boots the result under UEFI. Needs
+    # qemu-system-x86_64, OVMF and KVM. INSTALL_TEST_TIMEOUT is in seconds.
+    set -euo pipefail
+    REF="{{image_name}}:{{image_tag}}"
+    sudo podman image exists "$REF" || { echo "ERROR: $REF not in podman; run 'just build'" >&2; exit 1; }
+    disk="${base_dir}/install-test.raw"
+    log="${base_dir}/install-test-serial.log"
+    vars="${base_dir}/install-test-vars.fd"
+    rm -f "$disk" "$log" "$vars"
+    fallocate -l 30G "$disk"
+
+    echo "==> Installing $REF with bootc's image defaults..."
+    BUILD_IMAGE_NAME="{{image_name}}" just bootc install to-disk \
+        --via-loopback /data/install-test.raw \
+        --wipe \
+        --karg console=ttyS0 \
+        --karg ignore_loglevel \
+        --karg systemd.show_status=true \
+        --karg systemd.firstboot=no
+
+    code=""; vsrc=""
+    for c in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/edk2/x64/OVMF_CODE.4m.fd; do
+        [ -e "$c" ] && { code="$c"; break; }
+    done
+    for v in /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/edk2/ovmf/OVMF_VARS.fd /usr/share/OVMF/OVMF_VARS.fd /usr/share/edk2/x64/OVMF_VARS.4m.fd; do
+        [ -e "$v" ] && { vsrc="$v"; break; }
+    done
+    [ -n "$code" ] && [ -n "$vsrc" ] || { echo "ERROR: OVMF firmware not found" >&2; exit 1; }
+    cp "$vsrc" "$vars"
+    SUDO_CMD=""; [ "$(id -u)" -eq 0 ] || SUDO_CMD="sudo"
+
+    echo "==> Booting the installed disk (serial log: $log)..."
+    $SUDO_CMD qemu-system-x86_64 -enable-kvm -machine q35 -cpu host -m 4096 -smp 2 \
+        -drive if=pflash,format=raw,readonly=on,file="$code" \
+        -drive if=pflash,format=raw,file="$vars" \
+        -drive file="$disk",format=raw,if=virtio \
+        -display none -serial file:"$log" -monitor none &
+    qpid=$!
+    trap '$SUDO_CMD kill "$qpid" 2>/dev/null || true' EXIT
+
+    deadline=$(( $(date +%s) + ${INSTALL_TEST_TIMEOUT:-600} ))
+    while ! grep -q "Reached target.*Graphical Interface" "$log" 2>/dev/null; do
+        if ! $SUDO_CMD kill -0 "$qpid" 2>/dev/null; then echo "FAIL: VM exited before graphical.target" >&2; tail -50 "$log" >&2; exit 1; fi
+        if [ "$(date +%s)" -ge "$deadline" ]; then echo "FAIL: graphical.target not reached in time" >&2; tail -50 "$log" >&2; exit 1; fi
+        sleep 5
+    done
+    if ! grep -m1 "Kernel command line:" "$log" | grep -q "composefs"; then
+        echo "FAIL: booted without a composefs= digest; not the composefs backend" >&2
+        grep -m1 "Kernel command line:" "$log" >&2 || true
+        exit 1
+    fi
+    echo "PASS: installed image boots to graphical.target on the composefs backend"
+
 [group('vm')]
 [doc('Convert the raw disk image to qcow2')]
 convert-to-qcow2 $base_dir=base_dir:
@@ -1369,6 +1427,15 @@ lint:
     $SUDO_CMD podman run --rm --privileged --pull=never \
         "{{image_name}}:{{image_tag}}" \
         bootc container lint
+
+    # The image, not an install flag, selects bootc's composefs backend
+    # (docs/adr/0001): setup-root-conf.toml present, no ostree prepare-root.conf.
+    $SUDO_CMD podman run --rm --pull=never "{{image_name}}:{{image_tag}}" sh -c '
+        [ -e /usr/lib/composefs/setup-root-conf.toml ] || { echo "FAIL: no setup-root-conf.toml" >&2; exit 1; }
+        for f in /usr/lib/ostree/prepare-root.conf /etc/ostree/prepare-root.conf; do
+            [ ! -e "$f" ] || { echo "FAIL: $f selects the ostree backend" >&2; exit 1; }
+        done
+        echo "PASS: image selects the composefs backend"'
 
 # ── Swap audit ───────────────────────────────────────────────────────
 # Assert the image's swap architecture: zram disabled, zswap kargs present,

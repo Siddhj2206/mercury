@@ -221,7 +221,7 @@ jobs:
       - name: Install VM tooling
         run: |
           for i in 1 2 3; do
-            sudo apt-get update && sudo apt-get install -y qemu-system-x86 virtiofsd && break
+            sudo apt-get update && sudo apt-get install -y qemu-system-x86 virtiofsd ovmf && break
             [ "$i" = 3 ] && exit 1 || sleep 10
           done
 
@@ -229,6 +229,16 @@ jobs:
         env:
           BOOT_TEST_TIMEOUT: "240"
         run: just boot-test
+
+      # boot-test never installs; this runs `bootc install to-disk` with the
+      # image's defaults (btrfs, composefs backend) and boots the result.
+      - name: Install-test image to disk and boot it
+        env:
+          INSTALL_TEST_TIMEOUT: "600"
+        run: |
+          just install-test
+          rm -f install-test.raw
+        timeout-minutes: 40
 
       # ── Publish (main / dispatch only) ──────────────────────────────────
       - name: Login to GHCR

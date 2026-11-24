@@ -3,6 +3,6 @@ bootloader = "systemd"
 
 [install.filesystem.root]
 # Required since bootc no longer defaults the root filesystem type.
-# Without this, `bootc install to-disk` exits 1 with "No root filesystem
-# specified", leaving disk.raw unpartitioned and breaking the CI boot check.
-type = "xfs"
+# btrfs: the composefs backend needs fs-verity, which XFS lacks, and btrfs
+# adds transparent compression and snapshots (docs/adr/0001).
+type = "btrfs"

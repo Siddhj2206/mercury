@@ -1,6 +1,6 @@
 # 0001: Sealed UKI boot on the composefs backend
 
-Status: proposed
+Status: accepted (step 1 in progress)
 
 ## Context
 
@@ -32,11 +32,13 @@ Move Mercury to sealed UKIs on the composefs backend, in three steps, each
 boot-tested before the next:
 
 1. **composefs backend, traditional boot.** Ship
-   `/usr/lib/composefs/setup-root-conf.toml`, drop the ostree
-   `prepare-root.conf`, and patch gnome-build-meta's initramfs `50-bootc`
-   module (via `patch_queue`) to carry `setup-root-conf.toml`; it already
-   carries `bootc-root-setup.service`. Root filesystem moves off XFS (see
-   below).
+   `/usr/lib/composefs/setup-root-conf.toml` (`boot/composefs-config.bst`)
+   and drop the ostree `prepare-root.conf`, so the image itself selects the
+   backend. gnome-build-meta's initramfs `50-bootc` module already carries
+   `bootc-root-setup.service`; it does not copy `setup-root-conf.toml`,
+   which is fine while every option stays at its default. Root filesystem
+   moves to btrfs. `just install-test` (in CI) installs with the image's
+   defaults and boots the disk.
 2. **Signed UKI.** In the signing pass, `bootc container
    split-kernel-and-rootfs`, then `bootc container ukify` with the Mercury
    Secure Boot key; the UKI goes to `/boot/EFI/Linux/`. PR builds produce an
@@ -50,9 +52,10 @@ boot-tested before the next:
 
 - **Reinstall.** bootc has no in-place ostree → composefs transition yet;
   existing installs must reinstall to get any of this.
-- **Root filesystem.** Sealed images require fs-verity, which XFS lacks.
-  ext4 is CI-tested upstream; btrfs is "expected to work, not tested".
-  `files/bootc-install/00-defaults.toml` changes from `xfs`.
+- **Root filesystem: btrfs.** Sealed images require fs-verity, which XFS
+  lacks. btrfs has it plus compression and snapshots; bootc calls it
+  "expected to work, not tested" (ext4 is the tested fallback), so
+  `just install-test` covers it in Mercury's CI.
 - **No automatic rollback.** The composefs backend has no boot counting or
   `bootc-boot-complete.service`; a bad update needs a manual rollback.
 - **Fixed command line.** kargs come from `/usr/lib/bootc/kargs.d` at build
@@ -67,7 +70,6 @@ boot-tested before the next:
 
 ## Open questions
 
-- ext4 or btrfs for root?
 - Does chunkah preserve every attribute the composefs digest covers, or must
   ukify run on chunkah's output?
 - Should step 3 keep PCR 7 in the policy alongside PCR 11, as `signed-boot.bst`

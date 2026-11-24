@@ -12,7 +12,7 @@ depends:
   # (oci/layers/boot.bst), so this stack never depends on secure_boot_signing.
 
   - gnome-build-meta.bst:gnomeos-deps/bootc.bst
-  - gnome-build-meta.bst:oci/integration/bootc-config.bst
+  - boot/composefs-config.bst
   - freedesktop-sdk.bst:vm/config/useradd-default.bst
   - freedesktop-sdk.bst:vm/config/sudo.bst
 
@@ -42,15 +42,13 @@ public:
       - mkdir /boot
       - mkdir /run
       - mkdir /sysroot
-      - mkdir /sysroot/ostree
 
       # Remove link paths first: ln -s nests inside an existing directory.
-      - rm -rfv /home /root /opt /mnt /srv /var /ostree /usr/local
+      - rm -rfv /home /root /opt /mnt /srv /var /ostree /usr/lib/ostree/prepare-root.conf /usr/local
       # Mount points for bind mounts
       - mkdir /home /root /snap
       - mkdir -p /var/home /var/roothome /var/opt /var/mnt /var/srv /var/tmp
       # Relative targets: bootc container lint rejects absolute ones.
-      - ln -sT sysroot/ostree /ostree
       - ln -sT var/opt /opt
       - ln -sT var/mnt /mnt
       - ln -sT var/srv /srv

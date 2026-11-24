@@ -33,3 +33,8 @@ files/boot-keys/private/*
 # Local build/boot-test outputs
 .build-logs/
 bootable.qcow2
+
+# just install-test outputs
+install-test.raw
+install-test-serial.log
+install-test-vars.fd
