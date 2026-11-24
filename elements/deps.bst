@@ -71,7 +71,6 @@ depends:
   - apps/tealdeer.bst
   - apps/ydotool.bst
   - apps/kanata.bst
-  # - apps/lsp-plugins-lv2.bst
   - gnome-build-meta.bst:freedesktop-sdk-extra.bst:components/just.bst
   - gnome-build-meta.bst:freedesktop-sdk-extra.bst:components/wl-clipboard.bst
 

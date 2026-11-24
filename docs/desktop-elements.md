@@ -66,14 +66,14 @@ is configured for the gstreamer backend (fdsdk has gstreamer, no ffmpeg).
 `dms`, `dms-greeter`, `dsearch`, `dgop` are Go. Building them
 source-first needs every dependency vendored as `go_module` sources —
 `dms/core` alone has ~35 direct deps including tailscale.com (~hundreds
-of modules transitively), and several need go ≥ 1.27 (fdsdk ships 1.25;
-`apps/syncthing-go.bst` has 1.26.6). The repo has no go-module generator
+of modules transitively), and several need go ≥ 1.27 (fdsdk ships 1.25). The repo has no go-module generator
 script and `modules.txt`/`git-ref` entries can't be hand-derived safely.
 Upstream's own distro packages ship these same signed release binaries.
 Dakota already accepts this pattern (`mercury/tailscale.bst` ships the
 upstream tarball). To move source-first later: write a
 `generate_go_sources.py` alongside `generate_cargo_sources.py` and a
-private go ≥ 1.27 toolchain element modeled on `apps/syncthing-go.bst`.
+private go ≥ 1.27 toolchain element (the removed `syncthing-go.bst` in git
+history is a working template).
 
 ## Junction components assumed to exist
 
@@ -150,8 +150,8 @@ matugen, cava. wlroots is not needed (niri uses smithay, not wlroots).
 6. **dms Go binary** — `dms-distropkg` is prebuilt; it may itself
    dlopen `libdux-qt-base.so.0` (staged anyway).
 7. **Go version floor** — if/when the Go pieces go source-first, they
-   need go ≥ 1.27; fdsdk's go (1.25) and syncthing-go (1.26.6) are too
-   old — another private toolchain element would be needed.
+   need go ≥ 1.27; fdsdk's go (1.25) is too old — a private toolchain
+   element would be needed.
 8. **smithay git pin** — niri v26.04 builds against a smithay git rev,
    not crates.io; the two cargo2 `kind: git` entries must be kept in
    sync with upstream's Cargo.lock on each bump.

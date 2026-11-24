@@ -23,7 +23,6 @@ PLUGINS_COMMUNITY = "elements/plugins/buildstream-plugins-community.bst"
 # This is also CI's matrix. Keep review notes with the corresponding element.
 TRACKED = [
     ("apps/brew.bst", "brew", ""),
-    ("fonts/jetbrains-mono.bst", "jetbrains-mono", ""),
     ("boot/efibootmgr.bst", "efibootmgr", ""),
     ("virt/distrobox.bst", "distrobox", ""),
     ("system/xdg-terminal-exec.bst", "xdg-terminal-exec", ""),
@@ -44,7 +43,6 @@ TRACKED = [
     ("virt/libvirt.bst", "libvirt", "review: libvirt and its git submodule"),
     ("hardware/lm-sensors.bst", "lm-sensors", ""),
     # The track pattern keeps the LV2 build on the 1.1 series.
-    ("apps/lsp-plugins-lv2.bst", "lsp-plugins-lv2", ""),
     ("diagnostics/nethogs.bst", "nethogs", ""),
     ("virt/nspawn.bst", "nspawn",
      "review: CLI, D-Bus, and polkit changes across major versions"),
@@ -73,7 +71,6 @@ TRACKED = [
     ("system/rpcbind.bst", "rpcbind", ""),
     ("desktop/greetd.bst", "greetd", ""),
     # Private toolchain for Syncthing; any newer Go satisfies its go.mod.
-    ("apps/syncthing-go.bst", "Go (Syncthing toolchain)", ""),
     ("plugins/buildstream-plugins.bst", "buildstream-plugins",
      "review: plugin junction bump"),
 ]
@@ -155,8 +152,6 @@ RELEASES = {
     "apps/gtk4-layer-shell.bst": Release(
         "wmww/gtk4-layer-shell", r"tags/(?P<version>v[0-9.]+)\.tar\.gz",
         "tags/{tag}.tar.gz"),
-    "fonts/jetbrains-mono-nerd-font.bst": Release(
-        "ryanoasis/nerd-fonts", r"download/(?P<version>v[^/]+)/", "download/{tag}/"),
     # No versioned GitHub releases (only a rolling "tip"), so read tags. Each
     # release changes the Zig dependency graph, which the generator re-pins.
     "apps/ghostty.bst": Release(
@@ -165,11 +160,6 @@ RELEASES = {
         query='[.[].name | select(test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$"))]'
               ' | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | last',
         generator="files/scripts/generate_ghostty_sources.py", derived=("apps/zig.bst",)),
-    # The source archive vendors Go modules; apps/syncthing-go.bst may need to follow.
-    "apps/syncthing.bst": Release(
-        "syncthing/syncthing",
-        r"download/(?P<version>v[0-9.]+)/syncthing-source-v[0-9.]+\.tar\.gz",
-        "download/{tag}/syncthing-source-{tag}.tar.gz"),
     "hardware/ifuse.bst": Release(
         "libimobiledevice/ifuse", r"download/(?P<version>[0-9.]+)/ifuse-[0-9.]+\.tar",
         "download/{tag}/ifuse-{version}.tar", tag_pattern=r"[0-9]+\.[0-9]+\.[0-9]+"),
