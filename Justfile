@@ -63,9 +63,12 @@ bst *ARGS:
     # BST_PODMAN_EXTRA_ARGS allows extra podman flags (e.g. CI mounts a
     # hotfixed BST module over the image copy). Word-splitting is
     # intentional here (flags are space-separated).
+    # --pids-limit=-1: podman's default cap (2048) counts threads, and
+    # buildbox-casd plus parallel builders exceed it (posix_spawn EAGAIN).
     # shellcheck disable=SC2086
     podman run --rm \
         --privileged \
+        --pids-limit=-1 \
         --device /dev/fuse \
         --network=host \
         ${BST_PODMAN_EXTRA_ARGS:-} \

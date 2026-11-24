@@ -11,6 +11,12 @@ sources:
 config:
   options:
     arch: '%{arch}'
+    # No remote-execution service: call compilers directly instead of
+    # routing every compile through recc into nested local sandboxes, which
+    # exhausted the bst2 container's process limit (posix_spawn EAGAIN in
+    # systemd-base). All recc variables are environment-nocache, so cache
+    # keys, and therefore gbm.gnome.org artifact hits, are unchanged.
+    recc: passthrough
     x86_64_v3: false
     (?):
     - arch == 'x86_64' and x86_64_v3:
