@@ -1375,7 +1375,7 @@ lint:
 # swapfile units wired. Guards against the #1131 overlap regression where the
 # upstream zram-generator config silently won over the intended override.
 [group('check')]
-[doc('Assert zram is off, zswap kargs present, swapfile wired')]
+[doc('Assert memory setup: zram off, zswap + swapfile, systemd-oomd policy')]
 swap-audit:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1434,6 +1434,24 @@ swap-audit:
         /usr/libexec/mercury-swapfile-init \
             || fail "mercury-swapfile-init exited non-zero"
 
-        [ "$STATUS" -eq 0 ] && echo "PASS: swap/zram configuration OK"
+        # systemd-oomd: shipped, enabled, and policy on every slice but session.slice.
+        SD=/usr/lib/systemd
+        for unit in systemd-oomd.service systemd-oomd.socket; do
+            [ -f "$SD/system/$unit" ] || fail "$unit not shipped (systemd built without oomd?)"
+        done
+        [ -x "$SD/systemd-oomd" ] || fail "systemd-oomd binary missing"
+        [ -L "$SD/system/multi-user.target.wants/systemd-oomd.service" ] \
+            || fail "systemd-oomd.service not enabled"
+        [ -L "$SD/system/sockets.target.wants/systemd-oomd.socket" ] \
+            || fail "systemd-oomd.socket not enabled"
+        for d in system/system.slice.d user/app.slice.d user/background.slice.d; do
+            grep -qx "ManagedOOMMemoryPressure=kill" "$SD/$d/10-mercury-oomd.conf" 2>/dev/null \
+                || fail "$d has no ManagedOOMMemoryPressure=kill"
+        done
+        if grep -rqs "ManagedOOM" "$SD/user/session.slice.d" "$SD/user/slice.d"; then
+            fail "oomd policy reaches session.slice: it would kill niri or DMS"
+        fi
+
+        [ "$STATUS" -eq 0 ] && echo "PASS: swap/zram/oomd configuration OK"
         exit "$STATUS"
         '

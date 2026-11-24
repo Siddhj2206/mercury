@@ -215,6 +215,7 @@ jobs:
         run: |
           just chunkify "localhost/${IMAGE_NAME}:latest"
           BUILD_IMAGE_NAME="${IMAGE_NAME}" just lint
+          BUILD_IMAGE_NAME="${IMAGE_NAME}" just swap-audit
 
       # KVM is available on hosted runners. bcvk auto-installs via cargo on
       # first use, which is slow; drop these two steps if that gets annoying.

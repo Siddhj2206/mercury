@@ -9,6 +9,7 @@
 #   /usr/lib/bootc/kargs.d                fresh-install kernel args
 #   /usr/lib/dracut/dracut.conf.d         initramfs driver omissions (gbm initramfs is dracut)
 #   /usr/lib/environment.d, sysctl.d, journald.conf.d
+#   /usr/lib/systemd/oomd.conf.d, *.slice.d   systemd-oomd policy
 #   /usr/libexec/mercury/*                ensure-homes, flatpak-preinstall, update-notify
 #   /usr/lib/systemd/system*              mercury-* units + drop-ins,
 #                                       coreos-sulogin-force-generator
@@ -54,6 +55,15 @@ config:
     for timer in mercury-flatpak-preinstall mercury-flatpak-update mercury-appstream-refresh; do
       ln -sf "../${timer}.timer" "${sysdir}/timers.target.wants/${timer}.timer"
     done
+  # systemd-oomd, which upstream's preset leaves off. Same links as
+  # `systemctl enable` from its [Install] section; slice policy lives in
+  # the *.slice.d drop-ins in this overlay.
+  - |
+    sysdir="%{install-root}%{indep-libdir}/systemd/system"
+    install -d "${sysdir}/sockets.target.wants"
+    ln -sf ../systemd-oomd.service "${sysdir}/multi-user.target.wants/systemd-oomd.service"
+    ln -sf ../systemd-oomd.socket "${sysdir}/sockets.target.wants/systemd-oomd.socket"
+    ln -sf systemd-oomd.service "${sysdir}/dbus-org.freedesktop.oom1.service"
   # User enablement, mirroring neptuno's [services].user list.
   - |
     userdir="%{install-root}%{indep-libdir}/systemd/user"

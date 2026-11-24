@@ -50,6 +50,7 @@ the operating procedure.
 - **`desktop/deps.bst` aggregation**: `kind: stack` aggregating everything; wire new desktop elements into it, not directly into OCI layers.
 - **Session entry is greetd**: `/etc/greetd/config.toml` runs `dms-greeter --command niri`; `default.target` → `graphical.target`. Session unit files live under `files/system/desktop/`, not scattered element ad-hoc files.
 - **oo7, not gnome-keyring**: niri's `niri-portals.conf` is patched (`patches/desktop/niri-portals-oo7-secret.patch`) so Secret Service is oo7.
+- **Apps run in their own scopes, the session in `session.slice`**: niri puts what it spawns in `app-niri-*.scope`; DMS uses `DMS_DEFAULT_LAUNCH_PREFIX` (`90-mercury-desktop.conf`) for `app-dms-<id>-*.scope`. Both land in `app.slice`, where systemd-oomd kills under pressure. Never put `ManagedOOM*` policy on `session.slice` or a generic `user/slice.d`: oomd kills a whole unit, which there is niri or DMS. `just swap-audit` enforces this.
 - **No second Qt**: `dux-qt-base` is built against Mercury's Qt; upstream's prebuilt bundle carries its own Qt and was rejected.
 
 ## Common Rationalizations
