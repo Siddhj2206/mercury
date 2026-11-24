@@ -13,11 +13,11 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 - freedesktop-sdk.bst:components/pkg-config.bst
 - freedesktop-sdk.bst:components/fftw.bst
-- freedesktop-sdk.bst:components/inih.bst
+- desktop/iniparser.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/fftw.bst
-- freedesktop-sdk.bst:components/inih.bst
+- desktop/iniparser.bst
 - freedesktop-sdk.bst:components/pipewire.bst

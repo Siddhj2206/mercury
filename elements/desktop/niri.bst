@@ -1949,7 +1949,7 @@ build-depends:
 - freedesktop-sdk.bst:components/systemd-libs.bst
 - freedesktop-sdk.bst:components/libinput.bst
 - freedesktop-sdk.bst:components/libxkbcommon.bst
-- freedesktop-sdk.bst:components/libdisplay-info.bst
+- desktop/libdisplay-info-niri.bst
 - freedesktop-sdk.bst:components/libseat.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libdrm.bst
@@ -1962,7 +1962,7 @@ depends:
 - freedesktop-sdk.bst:components/systemd-libs.bst
 - freedesktop-sdk.bst:components/libinput.bst
 - freedesktop-sdk.bst:components/libxkbcommon.bst
-- freedesktop-sdk.bst:components/libdisplay-info.bst
+- desktop/libdisplay-info-niri.bst
 - freedesktop-sdk.bst:components/libseat.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libdrm.bst
@@ -1972,6 +1972,12 @@ depends:
 
 variables:
   strip-binaries: ""
+  # libdisplay-info 0.3 lives under a private prefix; see that element.
+  libdisplay-info-libdir: /usr/lib/niri/libdisplay-info/lib/%{gcc_triplet}
+
+environment:
+  PKG_CONFIG_PATH: '%{libdisplay-info-libdir}/pkgconfig'
+  RUSTFLAGS: '-C link-arg=-Wl,-rpath,%{libdisplay-info-libdir}'
 
 config:
   build-commands:
