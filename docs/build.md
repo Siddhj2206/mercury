@@ -24,6 +24,15 @@ forwarded to both junctions, so enabling it changes every cache key and
 rebuilds both stacks from bootstrap (LLVM alone takes hours), which cannot fit
 in a hosted CI job without a private remote-execution cache.
 
+The upstream caches also keep only recent artifacts. They hold what the
+current `gnome-51` branch builds, not what an older commit built, so a
+gnome-build-meta pin that falls a few weeks behind misses on nearly every
+GNOME element even though Mercury's cache keys equal upstream's for that
+commit. Keep `gnome-build-meta.bst` on the branch tip
+(`just update-sources --group core-junctions`). When a junction patch stops
+applying, the scheduled tracker fails and the pin goes stale; fix or drop the
+patch rather than leaving the pin behind.
+
 For a local v3 build, use `BST_FLAGS="-o x86_64_v3 true" just build` and keep
 that option for subsequent export/checkout commands.
 
