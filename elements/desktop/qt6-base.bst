@@ -82,6 +82,6 @@ config:
       -cmake-generator Ninja
   - cmake --build . --parallel
   install-commands:
-  - cmake --install .
+  - DESTDIR="%{install-root}" cmake --install .
   - install -Dm644 LICENSES/GPL-3.0-only.txt "%{install-root}%{datadir}/licenses/qt6-base/GPL-3.0-only.txt"
   - "%{install-extra}"
