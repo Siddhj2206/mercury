@@ -293,7 +293,17 @@ jobs:
       - name: Boot-test image in an ephemeral VM
         env:
           BOOT_TEST_TIMEOUT: "240"
+          BOOT_TEST_LOG_DIR: logs/boot-test
         run: just boot-test
+
+      - name: Upload boot-test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: boot-test-logs
+          path: logs/boot-test/
+          retention-days: 7
+          if-no-files-found: ignore
 
       # ── Publish (main / dispatch only) ──────────────────────────────────
       - name: Login to GHCR

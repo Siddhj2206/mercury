@@ -1197,7 +1197,9 @@ boot-test: _ensure-bcvk
 
     VM_NAME="mercury-boot-test-$$"
     TIMEOUT="${BOOT_TEST_TIMEOUT:-120}"
+    LOG_DIR="$(realpath -m "${BOOT_TEST_LOG_DIR:-logs/boot-test}")"
     STATUS=1
+    mkdir -p "$LOG_DIR"
 
     # Use sudo unless already root
     SUDO_CMD=""
@@ -1211,7 +1213,24 @@ boot-test: _ensure-bcvk
         exit 1
     fi
 
+    # On failure, show why: the end of the serial console and the errors the
+    # journal logged. Full logs stay in LOG_DIR.
+    report() {
+        [ "$STATUS" -eq 0 ] && return
+        $SUDO_CMD chmod -R a+rX "$LOG_DIR" 2>/dev/null || true
+        if [ -s "$LOG_DIR/console.txt" ]; then
+            echo "==> Last 150 lines of the VM console:"
+            tail -n 150 "$LOG_DIR/console.txt"
+        fi
+        if [ -s "$LOG_DIR/journal.json" ]; then
+            echo "==> Journal errors (priority <= 3):"
+            jq -r 'select((.PRIORITY // "6" | tonumber) <= 3) | "\(.SYSLOG_IDENTIFIER // ._COMM // "?"): \(.MESSAGE)"' \
+                "$LOG_DIR/journal.json" 2>/dev/null | tail -n 80 || true
+        fi
+        echo "==> Full logs: $LOG_DIR"
+    }
     cleanup() {
+        report
         echo "==> Tearing down VM ${VM_NAME}..."
         $SUDO_CMD bcvk ephemeral rm -f "$VM_NAME" 2>/dev/null || true
     }
@@ -1222,6 +1241,7 @@ boot-test: _ensure-bcvk
         --memory "{{vm_ram}}M" \
         --vcpus "{{vm_cpus}}" \
         --name "$VM_NAME" \
+        --log-dir "journal,console=${LOG_DIR}/" \
         "localhost/{{image_name}}:{{image_tag}}"
 
     # Wait for SSH to become available
