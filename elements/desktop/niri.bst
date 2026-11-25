@@ -1953,6 +1953,8 @@ build-depends:
 - freedesktop-sdk.bst:components/libseat.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libdrm.bst
+# libgbm.so for gbm-sys to link; the real backends come from mesa at runtime.
+- freedesktop-sdk.bst:components/dummy-gbm.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 - gnome-build-meta.bst:sdk/pango.bst
 - overrides/mesa-default.bst
@@ -1966,6 +1968,8 @@ depends:
 - freedesktop-sdk.bst:components/libseat.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libdrm.bst
+# libgbm.so for gbm-sys to link; the real backends come from mesa at runtime.
+- freedesktop-sdk.bst:components/dummy-gbm.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 - gnome-build-meta.bst:sdk/pango.bst
 - overrides/mesa-default.bst

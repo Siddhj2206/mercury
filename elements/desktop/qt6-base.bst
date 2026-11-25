@@ -74,7 +74,7 @@ config:
     ./configure -prefix "%{prefix}" -libdir "%{libdir}" \
       -release -opensource -confirm-license \
       -nomake examples -nomake tests -no-pch \
-      -system-freetype -system-fontconfig -system-harfbuzz \
+      -system-freetype -fontconfig -system-harfbuzz \
       -system-libpng -system-libjpeg -system-zlib \
       -qt-pcre -qt-doubleconversion -no-icu \
       -openssl-linked \
