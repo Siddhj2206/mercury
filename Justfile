@@ -1218,6 +1218,13 @@ boot-test: _ensure-bcvk
     report() {
         [ "$STATUS" -eq 0 ] && return
         $SUDO_CMD chmod -R a+rX "$LOG_DIR" 2>/dev/null || true
+        # The VM runs inside a podman container; if that dies before QEMU
+        # starts (bcvk's entrypoint runs in the image's userspace), only its
+        # own log says why.
+        echo "==> VM container state:"
+        $SUDO_CMD podman ps -a --filter "name=${VM_NAME}" --format '{{"{{"}}.Names{{"}}"}} {{"{{"}}.Status{{"}}"}}' || true
+        echo "==> VM container log (last 100 lines):"
+        $SUDO_CMD podman logs "$VM_NAME" 2>&1 | tail -n 100 | tee "$LOG_DIR/container.log" || true
         if [ -s "$LOG_DIR/console.txt" ]; then
             echo "==> Last 150 lines of the VM console:"
             tail -n 150 "$LOG_DIR/console.txt"
@@ -1237,7 +1244,8 @@ boot-test: _ensure-bcvk
     trap cleanup EXIT
 
     echo "==> boot-test: launching ephemeral VM (timeout: ${TIMEOUT}s)..."
-    $SUDO_CMD bcvk ephemeral run -d --rm -K \
+    # No --rm: cleanup removes the container after report has read its log.
+    $SUDO_CMD bcvk ephemeral run -d -K \
         --memory "{{vm_ram}}M" \
         --vcpus "{{vm_cpus}}" \
         --name "$VM_NAME" \
