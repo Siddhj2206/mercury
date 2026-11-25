@@ -294,6 +294,7 @@ jobs:
         env:
           BOOT_TEST_TIMEOUT: "240"
           BOOT_TEST_LOG_DIR: logs/boot-test
+          BOOT_TEST_DIAGNOSE: "1"
         run: just boot-test
 
       - name: Upload boot-test logs

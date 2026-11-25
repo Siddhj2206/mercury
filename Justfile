@@ -1225,6 +1225,28 @@ boot-test: _ensure-bcvk
         $SUDO_CMD podman ps -a --filter "name=${VM_NAME}" --format '{{"{{"}}.Names{{"}}"}} {{"{{"}}.Status{{"}}"}}' || true
         echo "==> VM container log (last 100 lines):"
         $SUDO_CMD podman logs "$VM_NAME" 2>&1 | tail -n 100 | tee "$LOG_DIR/container.log" || true
+        if [ -n "${BOOT_TEST_DIAGNOSE:-}" ]; then
+            echo "==> Host kernel log (last 40 lines):"
+            $SUDO_CMD dmesg 2>&1 | tail -n 40 || true
+            # Re-run the first mounts of bcvk's entrypoint in the image, with
+            # the same podman options bcvk uses, and libmount's debug output.
+            echo "==> bcvk entrypoint mounts, reproduced in the image:"
+            $SUDO_CMD podman run --rm --cap-add=all \
+                --security-opt=label=disable --security-opt=seccomp=unconfined \
+                "--security-opt=unmask=/proc/*" \
+                --mount=type=tmpfs,target=/run \
+                -v /usr:/run/tmproot/usr:ro \
+                --entrypoint /bin/bash \
+                "localhost/{{image_name}}:{{image_tag}}" -c '
+                    ls -ld /run /var /var/tmp /tmp /dev
+                    grep -E " /run| /dev | / " /proc/self/mountinfo
+                    mkdir -p /run/tmproot/run
+                    LIBMOUNT_DEBUG=all mount --rbind /run /run/tmproot/run 2>&1 | tail -n 60
+                    echo "rc=${PIPESTATUS[0]}"
+                    LIBMOUNT_FORCE_MOUNT2=always mount --rbind /run /run/tmproot/run
+                    echo "rc with mount(2)=$?"
+                ' 2>&1 | tee "$LOG_DIR/mount-repro.log" || true
+        fi
         if [ -s "$LOG_DIR/console.txt" ]; then
             echo "==> Last 150 lines of the VM console:"
             tail -n 150 "$LOG_DIR/console.txt"
