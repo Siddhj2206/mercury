@@ -61,6 +61,9 @@ depends:
 - freedesktop-sdk.bst:components/jpeg.bst
 - freedesktop-sdk.bst:components/openssl.bst
 - freedesktop-sdk.bst:components/libglvnd.bst
+# Qt6Gui's CMake config finds OpenGL, so every module built against
+# Qt::Gui needs the GL headers. The image drops them (devel domain).
+- freedesktop-sdk.bst:components/mesa-headers.bst
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libxkbcommon.bst
