@@ -22,6 +22,9 @@ build-depends:
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/wayland-protocols.bst
 - freedesktop-sdk.bst:components/libdrm.bst
+# gbm.pc and libgbm.so for the wayland buffer code; mesa provides the
+# real backends at runtime (as for niri).
+- freedesktop-sdk.bst:components/dummy-gbm.bst
 - freedesktop-sdk.bst:components/mesa-headers.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 - freedesktop-sdk.bst:components/linux-pam.bst
@@ -38,6 +41,9 @@ depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libdrm.bst
+# gbm.pc and libgbm.so for the wayland buffer code; mesa provides the
+# real backends at runtime (as for niri).
+- freedesktop-sdk.bst:components/dummy-gbm.bst
 - freedesktop-sdk.bst:components/pipewire.bst
 - freedesktop-sdk.bst:components/linux-pam.bst
 - freedesktop-sdk.bst:components/polkit.bst

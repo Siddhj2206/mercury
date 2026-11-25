@@ -14,6 +14,8 @@ build-depends:
 - freedesktop-sdk.bst:components/pkg-config.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-base.bst
+# GStreamer::Play (libgstplay) lives in plugins-bad.
+- freedesktop-sdk.bst:components/gstreamer-plugins-bad.bst
 - desktop/qt6-base.bst
 - desktop/qt6-declarative.bst
 # qsb compiles the module's shaders; without it configure stops at
@@ -24,6 +26,8 @@ depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-base.bst
+# GStreamer::Play (libgstplay) lives in plugins-bad.
+- freedesktop-sdk.bst:components/gstreamer-plugins-bad.bst
 - desktop/qt6-base.bst
 - desktop/qt6-declarative.bst
 
