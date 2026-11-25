@@ -36,6 +36,9 @@ build-depends:
 - freedesktop-sdk.bst:components/openssl.bst
 - freedesktop-sdk.bst:components/libglvnd.bst
 - freedesktop-sdk.bst:components/mesa-headers.bst
+# Enables Qt's vulkan feature (qvulkanfunctions.h); quickshell needs it.
+# Qt loads libvulkan at runtime, so only the headers are required.
+- freedesktop-sdk.bst:components/vulkan-headers.bst
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libxkbcommon.bst
@@ -64,6 +67,9 @@ depends:
 # Qt6Gui's CMake config finds OpenGL, so every module built against
 # Qt::Gui needs the GL headers. The image drops them (devel domain).
 - freedesktop-sdk.bst:components/mesa-headers.bst
+# Likewise Vulkan: with the vulkan feature on, Qt6Gui's config looks for
+# the Vulkan headers.
+- freedesktop-sdk.bst:components/vulkan-headers.bst
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/wayland.bst
 - freedesktop-sdk.bst:components/libxkbcommon.bst
@@ -81,7 +87,7 @@ config:
       -system-libpng -system-libjpeg -system-zlib \
       -qt-pcre -qt-doubleconversion -no-icu \
       -openssl-linked \
-      -feature-glib -feature-dbus \
+      -feature-glib -feature-dbus -feature-vulkan \
       -cmake-generator Ninja
   - cmake --build . --parallel
   install-commands:
