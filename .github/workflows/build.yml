@@ -289,6 +289,14 @@ jobs:
           tar -xzf "$tarball" -C "${RUNNER_TEMP}"
           sudo install -m755 "${RUNNER_TEMP}/bcvk-x86_64-unknown-linux-gnu" /usr/local/bin/bcvk
           bcvk --version
+          # bcvk's entrypoint bind-mounts /run inside its container. Ubuntu
+          # confines podman containers with AppArmor's containers-default
+          # profile, whose silent `deny mount` makes that fail with EACCES.
+          # bcvk sets no AppArmor option, so run this throwaway runner's
+          # containers unconfined (containers.conf(5): apparmor_profile).
+          sudo mkdir -p /etc/containers/containers.conf.d
+          printf '[containers]\napparmor_profile = "unconfined"\n' \
+            | sudo tee /etc/containers/containers.conf.d/50-bcvk-apparmor.conf
 
       - name: Boot-test image in an ephemeral VM
         env:
