@@ -46,19 +46,84 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  build:
-    # PRs build only when a maintainer adds the `build` label (same-repo
-    # branches only — fork PRs never reach the signing/publish steps).
-    if: >-
-      github.event_name != 'pull_request' ||
-      (contains(github.event.pull_request.labels.*.name, 'build') &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+  # The image's slices, built in parallel on separate runners. Their
+  # Mercury-built elements are disjoint (only build-tools/sandbox-tools.bst
+  # is shared), so no slice repeats another's work, and a slice with nothing
+  # to rebuild only pulls from the cache. The slowest slice sets the wall
+  # time instead of the sum of all of them.
+  #
+  # Slices exist to fill the cache for the `build` job, so they run only
+  # where the cache is writable (main). Pull requests skip them and build
+  # everything in `build`, read-only.
+  slice:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
     # GitHub caps hosted jobs at 360 min.
     timeout-minutes: 355
     permissions:
       contents: read
       # Artifact cache packs in ghcr (public package storage is free).
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The kernel and its modules (unsigned; the image job signs).
+          - name: kernel
+            targets: oci/layers/boot.bst
+          # niri, DMS, quickshell and the Qt 6 stack.
+          - name: desktop
+            targets: desktop/deps.bst
+          # Everything else Mercury builds: apps, CLI tools, virt, input.
+          - name: userland
+            targets: deps.bst system/deps.bst
+    name: slice (${{ matrix.name }})
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install just
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2
+        with:
+          tool: just
+
+      # A BST source build needs tens of GB; reclaim the preinstalled
+      # toolchain images hosted runners ship.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/lib/swift || true
+          docker image prune -af 2>/dev/null || true
+          df -h /
+
+      # A slice that hits its budget is a checkpoint, not a failure: its
+      # progress is cached and the `build` job (or a continuation run)
+      # carries on from there.
+      - name: Build slice
+        uses: ./.github/actions/bst-build
+        with:
+          targets: ${{ matrix.targets }}
+          cache-push: 'true'
+          # PAT first: GITHUB_TOKEN cannot always read user-namespace packages.
+          registry-token: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
+          log-name: buildstream-logs-${{ matrix.name }}
+
+  # Assemble the image from the slices' cached artifacts: the compose and
+  # OCI layer elements, plus anything a slice left unfinished. On pull
+  # requests (slices skipped) this builds everything, read-only.
+  build:
+    needs: slice
+    # PRs build only when a maintainer adds the `build` label (same-repo
+    # branches only — fork PRs never reach the signing/publish steps).
+    if: >-
+      !cancelled() && needs.slice.result != 'failure' &&
+      (github.event_name != 'pull_request' ||
+       (contains(github.event.pull_request.labels.*.name, 'build') &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-26.04
+    timeout-minutes: 355
+    permissions:
+      contents: read
       packages: write
       # Dispatch a continuation run when the build hits its time budget.
       actions: write
@@ -73,8 +138,6 @@ jobs:
         with:
           tool: just
 
-      # A full BST source build needs tens of GB; reclaim the preinstalled
-      # toolchain images hosted runners ship.
       - name: Free runner disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
@@ -82,73 +145,31 @@ jobs:
           docker image prune -af 2>/dev/null || true
           df -h /
 
-      # Mercury's artifact cache (scripts/bst_ghcr_cache.py): pulls packs
-      # from ghcr only when BuildStream asks for them, and on main banks
-      # each artifact as soon as it is built, so a timed-out run keeps its
-      # progress. Pull requests read it and never write.
-      - name: Start artifact cache
-        env:
-          CACHE_PUSH: ${{ env.CACHE_WRITE == 'true' && '1' || '0' }}
-          REGISTRY_USER: ${{ github.actor }}
-          # PAT first: GITHUB_TOKEN cannot always read user-namespace packages.
-          REGISTRY_TOKEN: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
-          CACHE_SOURCE: https://github.com/${{ github.repository }}
-          CACHE_PROXY_STORE: ${{ runner.temp }}/cache-proxy
-        run: just cache-proxy start
-
-      - name: Generate BuildStream CI config
-        uses: ./.github/actions/generate-bst-ci-config
-        with:
-          cache-push: ${{ env.CACHE_WRITE }}
-
       - name: Build OCI image with BuildStream
         id: bst
-        env:
-          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
-        run: |
-          set -o pipefail
-          mkdir -p logs
-          # Stop short of the job limit so logs upload and a continuation
-          # can be dispatched. Everything built so far is already cached.
-          status=0
-          timeout --kill-after=2m 325m just bst build oci/mercury.bst 2>&1 | tee logs/bst-console.log || status=$?
-          if [ "$status" = 124 ] || [ "$status" = 137 ]; then
-            # timeout signals `just`, not the bst container it started.
-            podman ps --format '{{.ID}} {{.Names}}' | awk '$2 != "bst-cache-proxy" {print $1}' | xargs -r podman kill
-            echo "timed_out=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::BuildStream build hit the time budget; built artifacts are cached"
-          fi
-          exit "$status"
-
-      - name: Stop artifact cache
-        if: always()
-        env:
-          CACHE_PROXY_LOG: logs/cache-proxy.log
-        run: just cache-proxy stop
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: ./.github/actions/bst-build
         with:
-          name: buildstream-logs-x86_64
-          path: logs/
-          retention-days: 7
-          if-no-files-found: ignore
+          targets: oci/mercury.bst
+          cache-push: ${{ env.CACHE_WRITE }}
+          registry-token: ${{ secrets.CACHE_CLEANUP_TOKEN || github.token }}
+          log-name: buildstream-logs-x86_64
 
       # A cold build can need more than one job's worth of time. Each run
       # resumes from the cache, so continue automatically a bounded number
-      # of times instead of waiting for someone to press re-run.
+      # of times instead of waiting for someone to press re-run. The job
+      # still fails, so the image job never runs on an unfinished build.
       - name: Continue the build in a new run
-        if: >-
-          always() && steps.bst.outputs.timed_out == 'true' && env.CACHE_WRITE == 'true' &&
-          fromJSON(inputs.continuation || '0') < 3
+        if: steps.bst.outputs.timed-out == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           CURRENT: ${{ inputs.continuation || '0' }}
         run: |
-          NEXT=$((CURRENT + 1))
-          gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f continuation="$NEXT"
-          echo "::notice::Dispatched continuation ${NEXT}/3"
+          if [ "$CACHE_WRITE" = true ] && [ "$CURRENT" -lt 3 ]; then
+            NEXT=$((CURRENT + 1))
+            gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f continuation="$NEXT"
+            echo "::notice::Dispatched continuation ${NEXT}/3"
+          fi
+          exit 1
 
   # Export, rechunk, lint, and boot-test the image. On pushes to main this
   # same job continues into signing and publishing so the exported image

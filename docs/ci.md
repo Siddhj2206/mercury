@@ -8,7 +8,7 @@ with this page.
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `validate.yml` | PRs and pushes to `main`, merge queue | Script checks, patch drift, BST element graph |
-| `build.yml` | Relevant pushes to `main`, `build`-labeled same-repo PRs, manual, self-dispatched continuations | BST build → export → chunkify → lint → boot test; on main also Secure-Boot sign, push `:sha`, keyless cosign sign+verify, tag `:latest` and `:VERSION.DATE` |
+| `build.yml` | Relevant pushes to `main`, `build`-labeled same-repo PRs, manual, self-dispatched continuations | Parallel BST slice builds (main) → BST image build → export → chunkify → lint → boot test; on main also Secure-Boot sign, push `:sha`, keyless cosign sign+verify, tag `:latest` and `:VERSION.DATE` |
 | `track-bst-sources.yml` | Daily schedule, manual | Track source pins; opens bundle PRs and core-junction PRs |
 | `vulnerability-scan.yml` | Weekly schedule, manual | Trivy scan of `:latest`, results to code scanning |
 | `scorecard.yml` | Weekly schedule, pushes to `main` | OpenSSF Scorecard supply-chain analysis |
@@ -51,6 +51,23 @@ tagged by the SHA-256 of the artifact's Remote Asset URI.
   and the signing pass stages the Secure Boot private key. The `image` job,
   which stages that key, runs the proxy read-only; pull requests read and
   never write.
+
+## Parallel slices
+
+On `main`, `build.yml` first builds the image's slices on separate runners
+(the `slice` matrix): `kernel` (`oci/layers/boot.bst`), `desktop`
+(`desktop/deps.bst`) and `userland` (`deps.bst`, `system/deps.bst`). Their
+Mercury-built elements are disjoint, so each slice pushes its own artifacts
+and none repeats another's work; a slice with nothing to rebuild only pulls.
+The `build` job then assembles `oci/mercury.bst` from the cache. Wall time
+is the slowest slice (the kernel, on a full rebuild) plus assembly, not the
+sum. A slice that hits its budget is a checkpoint: `build` finishes the
+rest or times out and dispatches a continuation.
+
+Slices exist to fill the cache, so they run only where it is writable.
+Pull requests skip them and build everything in `build`, read-only. When
+an element is added outside the three slice targets it is still built, by
+`build`, just not in parallel.
 
 The proxy is the first artifact remote in `buildstream-ci.conf`, ahead of
 the public caches: a miss there is a localhost round trip, while a miss on

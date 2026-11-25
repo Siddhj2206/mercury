@@ -27,12 +27,12 @@ Workflow YAML in `.github/workflows/` is the current source of truth. Do not rel
 
 1. **Route the Workflow**: Identify the failing workflow:
    - `validate.yml`: PR and push static checks — script checks, patch drift, BST element graph
-   - `build.yml`: BST build → export → chunkify → `bootc container lint` → boot test; on `main` additionally Secure-Boot sign, push `:<sha>`, keyless cosign sign+verify, tag `:latest` and `:$VERSION.$DATE`
+   - `build.yml`: parallel BST slice jobs (`slice (kernel|desktop|userland)`, main only) → BST image build (`build`) → export → chunkify → `bootc container lint` → boot test; on `main` additionally Secure-Boot sign, push `:<sha>`, keyless cosign sign+verify, tag `:latest` and `:$VERSION.$DATE`
    - `track-bst-sources.yml`: daily source tracking, opens bundle and core-junction PRs
    - `vulnerability-scan.yml`: weekly Trivy scan of `:latest`
    - `scorecard.yml`, `validate-renovate.yml`, `renovate-automerge.yml`: supply-chain and Renovate plumbing
 2. **Inspect at Run SHA**: Read the workflow YAML at the exact commit that executed.
-3. **Isolate Root Cause**: Distinguish syntax/permission failure (zero jobs run), source fetch failure, cache proxy failure (`logs/cache-proxy.log` in the build-logs artifact), a time-budget stop (a continuation run follows), or BST compilation error.
+3. **Isolate Root Cause**: Distinguish syntax/permission failure (zero jobs run), source fetch failure, cache proxy failure (`logs/cache-proxy.log` in the `buildstream-logs-<slice>` or `buildstream-logs-x86_64` artifact), a time-budget stop (a continuation run follows), or BST compilation error.
 4. **Enforce Least Privilege**: PR jobs never receive `MERCURY_SECURE_BOOT_KEY` and never push; fork PRs cannot get the `build` label gate.
 5. **Validate Locally**: Run `just check-publish-workflow` and `just validate` before submitting.
 

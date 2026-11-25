@@ -1,0 +1,89 @@
+name: BuildStream build with the artifact cache
+description: >-
+  Start Mercury's ghcr artifact cache proxy, build the given BuildStream
+  targets within a time budget, stop the proxy, and upload the logs. Every
+  artifact is cached as soon as it is built (when cache-push is true), so a
+  run that hits the budget keeps its progress.
+
+inputs:
+  targets:
+    description: Space-separated BuildStream targets to build.
+    required: true
+  cache-push:
+    description: Push built artifacts to the ghcr cache ('true' or 'false').
+    required: true
+  registry-token:
+    description: Token for reading (and, with cache-push, writing) the cache package.
+    required: true
+  budget-minutes:
+    description: Minutes BuildStream may run before it is stopped.
+    required: false
+    default: '325'
+  log-name:
+    description: Name of the uploaded build-logs artifact.
+    required: true
+
+outputs:
+  timed-out:
+    description: "'true' when BuildStream was stopped at the time budget."
+    value: ${{ steps.bst.outputs.timed_out || 'false' }}
+
+runs:
+  using: composite
+  steps:
+    # Pulls packs from ghcr only when BuildStream asks for them, and (with
+    # cache-push) banks each artifact as soon as it is built.
+    - name: Start artifact cache
+      shell: bash
+      env:
+        CACHE_PUSH: ${{ inputs.cache-push == 'true' && '1' || '0' }}
+        REGISTRY_USER: ${{ github.actor }}
+        REGISTRY_TOKEN: ${{ inputs.registry-token }}
+        CACHE_SOURCE: https://github.com/${{ github.repository }}
+        CACHE_PROXY_STORE: ${{ runner.temp }}/cache-proxy
+      run: just cache-proxy start
+
+    - name: Generate BuildStream CI config
+      uses: ./.github/actions/generate-bst-ci-config
+      with:
+        cache-push: ${{ inputs.cache-push }}
+
+    # A timeout is reported through the timed-out output rather than as a
+    # failure, so the caller decides whether it is a checkpoint or an error.
+    - name: Build with BuildStream
+      id: bst
+      shell: bash
+      env:
+        BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        TARGETS: ${{ inputs.targets }}
+        BUDGET: ${{ inputs.budget-minutes }}
+      run: |
+        set -o pipefail
+        mkdir -p logs
+        status=0
+        # shellcheck disable=SC2086 # TARGETS is a list of element names.
+        timeout --kill-after=2m "${BUDGET}m" just bst build $TARGETS 2>&1 | tee logs/bst-console.log || status=$?
+        if [ "$status" = 124 ] || [ "$status" = 137 ]; then
+          # timeout signals `just`, not the bst container it started.
+          podman ps --format '{{.ID}} {{.Names}}' | awk '$2 != "bst-cache-proxy" {print $1}' | xargs -r podman kill
+          echo "timed_out=true" >> "$GITHUB_OUTPUT"
+          echo "::warning::BuildStream hit the ${BUDGET}-minute budget; built artifacts are cached"
+          exit 0
+        fi
+        exit "$status"
+
+    - name: Stop artifact cache
+      if: always()
+      shell: bash
+      env:
+        CACHE_PROXY_LOG: logs/cache-proxy.log
+      run: just cache-proxy stop
+
+    - name: Upload build logs
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.log-name }}
+        path: logs/
+        retention-days: 7
+        if-no-files-found: ignore
