@@ -1,5 +1,7 @@
-# CLI11 — header-only argument parser, static dependency of quickshell.
-kind: manual
+# CLI11 — header-only argument parser, static dependency of quickshell and
+# dux-qt-base. Built with CMake (not copied) because both consumers use
+# find_package(CLI11 CONFIG), which needs the installed CLI11Config.cmake.
+kind: cmake
 
 sources:
 - kind: git_repo
@@ -9,8 +11,7 @@ sources:
   # TODO: bst track
 
 build-depends:
-- build-tools/sandbox-tools.bst
-- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -18,10 +19,13 @@ depends:
 variables:
   # Header-only: nothing to strip.
   strip-binaries: ""
+  cmake-local: >-
+    -DCLI11_BUILD_TESTS=OFF
+    -DCLI11_BUILD_EXAMPLES=OFF
+    -DCLI11_BUILD_DOCS=OFF
+    -DCLI11_PRECOMPILED=OFF
 
 config:
   install-commands:
-  - mkdir -p "%{install-root}%{prefix}/include"
-  - cp -a include/CLI "%{install-root}%{prefix}/include/"
-  - install -Dm644 LICENSE "%{install-root}%{datadir}/licenses/cli11/LICENSE"
-  - "%{install-extra}"
+    (>):
+    - install -Dm644 LICENSE "%{install-root}%{datadir}/licenses/cli11/LICENSE"

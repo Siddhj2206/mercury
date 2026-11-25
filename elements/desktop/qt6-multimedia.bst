@@ -16,6 +16,9 @@ build-depends:
 - freedesktop-sdk.bst:components/gstreamer-plugins-base.bst
 - desktop/qt6-base.bst
 - desktop/qt6-declarative.bst
+# qsb compiles the module's shaders; without it configure stops at
+# qt_internal_add_shaders.
+- desktop/qt6-shadertools.bst
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
