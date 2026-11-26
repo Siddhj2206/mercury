@@ -19,6 +19,24 @@ config:
     L+ /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf
     EOF
 
+  # NetworkManager manages the network. Mercury's presets have no catch-all
+  # `disable *`, so preset-all would otherwise enable systemd-networkd too,
+  # and systemd-networkd-wait-online then holds network-online.target until
+  # its 2-minute timeout on every boot. Mirrors gnome-build-meta's
+  # 80-network.preset, which Mercury does not import.
+  - |
+    install -Dm644 /dev/null "%{install-root}%{indep-libdir}/systemd/system-preset/80-mercury-network.preset"
+    cat > "%{install-root}%{indep-libdir}/systemd/system-preset/80-mercury-network.preset" <<'EOF'
+    enable NetworkManager.service
+    disable systemd-networkd.service
+    disable systemd-networkd.socket
+    disable systemd-networkd-varlink.socket
+    disable systemd-networkd-varlink-metrics.socket
+    disable systemd-networkd-resolve-hook.socket
+    disable systemd-networkd-persistent-storage.service
+    disable systemd-networkd-wait-online.service
+    EOF
+
   - |
     install -Dm644 /dev/null "%{install-root}%{sysconfdir}/hosts"
     cat > "%{install-root}%{sysconfdir}/hosts" <<'EOF'
