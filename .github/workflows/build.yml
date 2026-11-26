@@ -299,8 +299,9 @@ jobs:
             | sudo tee /etc/containers/containers.conf.d/50-bcvk-apparmor.conf
 
       - name: Boot-test image in an ephemeral VM
+        timeout-minutes: 15
         env:
-          BOOT_TEST_TIMEOUT: "240"
+          BOOT_TEST_TIMEOUT: "360"
           BOOT_TEST_LOG_DIR: logs/boot-test
           BOOT_TEST_DIAGNOSE: "1"
         run: just boot-test

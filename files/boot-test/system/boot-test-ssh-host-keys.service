@@ -1,0 +1,14 @@
+# Injected into the boot-test VM only (bcvk --systemd-units); never part of
+# the image. Mercury ships no SSH host keys and enables no sshd, and the
+# per-connection sshd that systemd-ssh-generator sets up does not create
+# keys itself, so generate them for the test's SSH checks.
+[Unit]
+Description=Generate SSH host keys for the boot test
+DefaultDependencies=no
+After=local-fs.target
+Before=ssh-access.target sockets.target
+ConditionPathExists=!/etc/ssh/ssh_host_ed25519_key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ssh-keygen -A

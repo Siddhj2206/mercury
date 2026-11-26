@@ -1272,24 +1272,27 @@ boot-test: _ensure-bcvk
         --vcpus "{{vm_cpus}}" \
         --name "$VM_NAME" \
         --log-dir "journal,console=${LOG_DIR}/" \
+        --karg systemd.ssh_listen=22 \
+        --systemd-units "$(realpath files/boot-test)" \
         "localhost/{{image_name}}:{{image_tag}}"
+    # Test VM only, never the image: Mercury enables no network sshd and
+    # ships no host keys. systemd.ssh_listen=22 makes systemd-ssh-generator
+    # listen on TCP 22 (bcvk's port; by default it uses only AF_VSOCK and
+    # AF_UNIX), and files/boot-test injects a unit that runs ssh-keygen -A.
 
-    # Wait for SSH to become available
+    # Wait for SSH to become available. Each attempt gets its own time limit:
+    # an attempt against a half-up guest can otherwise block forever.
+    vm_ssh() { $SUDO_CMD timeout 30 bcvk ephemeral ssh "$VM_NAME" -- "$@"; }
     echo "==> Waiting for SSH..."
-    ELAPSED=0
-    while [ $ELAPSED -lt "$TIMEOUT" ]; do
-        if $SUDO_CMD bcvk ephemeral ssh "$VM_NAME" -- true 2>/dev/null; then
-            break
+    START=$SECONDS
+    until vm_ssh true 2>/dev/null; do
+        if [ $((SECONDS - START)) -ge "$TIMEOUT" ]; then
+            echo "FAIL: SSH did not become available within ${TIMEOUT}s" >&2
+            exit 1
         fi
         sleep 5
-        ELAPSED=$((ELAPSED + 5))
     done
-
-    if [ $ELAPSED -ge "$TIMEOUT" ]; then
-        echo "FAIL: SSH did not become available within ${TIMEOUT}s" >&2
-        exit 1
-    fi
-    echo "==> SSH up after ~${ELAPSED}s"
+    echo "==> SSH up after ~$((SECONDS - START))s"
 
     # Check services
     echo "==> Checking critical services..."
@@ -1304,7 +1307,7 @@ boot-test: _ensure-bcvk
     for check in "${CHECKS[@]}"; do
         NAME="${check%%:*}"
         CMD="${check#*:}"
-        if $SUDO_CMD bcvk ephemeral ssh "$VM_NAME" -- $CMD &>/dev/null; then
+        if vm_ssh $CMD &>/dev/null; then
             echo "  ✓ ${NAME}"
             PASS=$((PASS + 1))
         else
