@@ -25,8 +25,8 @@ sources:
   # alsa-lib 1.2.16). This follows fdsdk's alsa-lib
   # (freedesktop-sdk.bst:components/alsa-lib.bst): the core-junctions update
   # selects the alsa-utils release of the same series and re-pins it.
-  url: alsa_project:utils/alsa-utils-1.2.14.tar.bz2
-  ref: 0794c74d33fed943e7c50609c13089e409312b6c403d6ae8984fc429c0960741
+  url: alsa_project:utils/alsa-utils-1.2.16.tar.bz2
+  ref: 092399d5e8749a1d5e188e393157521cec4b75693b60ebb79bbce728cff2232c
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
